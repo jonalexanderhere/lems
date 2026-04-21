@@ -15,7 +15,7 @@ export default function ContactPage() {
       <section className="pt-40 pb-16 px-6 md:px-12 border-b border-white/10">
         <div className="container mx-auto">
           <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.3em] text-sm mb-4">Get In Touch</p>
-          <h1 className="font-black uppercase tracking-tighter text-6xl md:text-8xl leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
+          <h1 className="font-black uppercase tracking-tighter text-5xl md:text-6xl lg:text-7xl leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
             Contact
           </h1>
         </div>

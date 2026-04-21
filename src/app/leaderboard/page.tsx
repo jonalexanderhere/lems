@@ -32,7 +32,7 @@ export default async function LeaderboardPage() {
               <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.4em] text-sm mb-3 text-center md:text-left">
                 Peringkat Terbaik {new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
               </p>
-              <h1 className="font-black uppercase tracking-tighter text-7xl md:text-9xl leading-[0.8] text-center md:text-left" style={{ fontFamily: "var(--font-grotesk)" }}>
+              <h1 className="font-black uppercase tracking-tighter text-5xl md:text-7xl lg:text-8xl leading-[0.9] text-center md:text-left" style={{ fontFamily: "var(--font-grotesk)" }}>
                 Papan <br /><span className="text-accent">Skor.</span>
               </h1>
             </div>

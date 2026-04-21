@@ -135,7 +135,7 @@ export default function AdminDashboard() {
         <div className="container mx-auto flex items-end justify-between">
           <div>
             <p className="text-[#FF2D2D] font-mono text-sm uppercase tracking-widest mb-2">Panel Administrasi</p>
-            <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
               {profile?.full_name ?? "Administrator"}
             </h1>
           </div>

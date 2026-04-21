@@ -168,7 +168,7 @@ export default function AssignmentPage() {
           <p className="text-[#FF2D2D] font-mono uppercase tracking-widest text-xs mb-3">
             {(assignment.courses as { title: string } | null)?.title ?? "Assignment"}
           </p>
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-none mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
             {assignment.title}
           </h1>
           {due && (

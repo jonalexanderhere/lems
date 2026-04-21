@@ -62,7 +62,7 @@ export default function PathsPage() {
       <section className="pt-40 pb-16 px-6 md:px-12 border-b border-white/10">
         <div className="container mx-auto">
           <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.3em] text-sm mb-4">Structured Training</p>
-          <h1 className="font-black uppercase tracking-tighter text-6xl md:text-8xl leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
+          <h1 className="font-black uppercase tracking-tighter text-5xl md:text-6xl lg:text-7xl leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
             Learning Paths
           </h1>
         </div>
@@ -78,7 +78,7 @@ export default function PathsPage() {
             >
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h2 className={`text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-2 ${path.accent}`} style={{ fontFamily: "var(--font-grotesk)" }}>
+                  <h2 className={`text-2xl md:text-4xl font-black uppercase tracking-tighter leading-none mb-2 ${path.accent}`} style={{ fontFamily: "var(--font-grotesk)" }}>
                     {path.title}
                   </h2>
                   <p className="text-white/60 text-lg">{path.subtitle}</p>

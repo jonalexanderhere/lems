@@ -58,11 +58,11 @@ export function AITutorTeaser() {
                 <Bot className="w-4 h-4" />
                 <span>Akses Beta</span>
               </div>
-              <h2 className="ai-text text-5xl md:text-7xl font-heading font-bold text-white uppercase tracking-tight leading-[0.9]">
+              <h2 className="ai-text text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-white uppercase tracking-tight leading-[0.95]">
                 Mentor AI Anda.<br/>
                 <span className="text-white/40">Selalu Aktif.</span>
               </h2>
-              <p className="ai-text text-xl md:text-2xl text-white/60 font-light max-w-lg mt-6">
+              <p className="ai-text text-lg md:text-xl text-white/60 font-light max-w-lg mt-6">
                 Tanya. Debug. Belajar lebih cepat. AI khusus yang dilatih untuk networking, sysadmin, dan cybersecurity.
               </p>
             </div>

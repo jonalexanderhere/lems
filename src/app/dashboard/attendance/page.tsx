@@ -268,7 +268,7 @@ export default function AttendancePage() {
       <section className="pt-32 pb-12 px-6 md:px-12">
         <div className="container mx-auto max-w-3xl text-center">
           <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.35em] text-sm mb-4">AI Face Attendance</p>
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
             Absensi <span className="text-accent">Wajah</span>
           </h1>
           <p className="text-white/50 mb-10">

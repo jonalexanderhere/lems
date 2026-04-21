@@ -65,7 +65,7 @@ export default async function DashboardPage() {
         <div className="container mx-auto flex items-end justify-between">
           <div>
             <p className="text-[#FF2D2D] font-mono text-sm uppercase tracking-widest mb-2">Dashboard Siswa</p>
-            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
               Halo, {profile?.full_name?.split(" ")[0] ?? "Engineer"}.
             </h1>
             {profile?.classes && (

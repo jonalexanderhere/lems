@@ -59,10 +59,10 @@ export function Hero() {
 
       <div className="relative z-10 container mx-auto px-6 md:px-12 flex flex-col items-center md:items-start text-center md:text-left mt-16">
         <div ref={textRef} className="overflow-hidden">
-          <h1 className="hero-text font-heading text-6xl md:text-8xl lg:text-[10rem] font-bold leading-[0.85] tracking-tighter uppercase text-white mb-2">
+          <h1 className="hero-text font-heading text-5xl md:text-6xl lg:text-8xl font-bold leading-[0.9] tracking-tighter uppercase text-white mb-2">
             Belajar Jadi
           </h1>
-          <h1 className="hero-text font-heading text-6xl md:text-8xl lg:text-[10rem] font-bold leading-[0.85] tracking-tighter uppercase text-white">
+          <h1 className="hero-text font-heading text-5xl md:text-6xl lg:text-8xl font-bold leading-[0.9] tracking-tighter uppercase text-white">
             Seorang <span className="text-accent">Engineer.</span>
           </h1>
         </div>

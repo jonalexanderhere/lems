@@ -25,6 +25,10 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  font-size: 15px;
+}
+
 /* Base styles for Lenis */
 html.lenis {
   height: auto;

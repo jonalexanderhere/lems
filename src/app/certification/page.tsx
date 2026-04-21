@@ -23,7 +23,7 @@ export default function CertificationPage() {
       <section className="pt-40 pb-16 px-6 md:px-12 border-b border-white/10">
         <div className="container mx-auto">
           <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.3em] text-sm mb-4">Official Credentials</p>
-          <h1 className="font-black uppercase tracking-tighter text-6xl md:text-8xl leading-none mb-6" style={{ fontFamily: "var(--font-grotesk)" }}>
+          <h1 className="font-black uppercase tracking-tighter text-5xl md:text-6xl lg:text-7xl leading-none mb-6" style={{ fontFamily: "var(--font-grotesk)" }}>
             Certification
           </h1>
           <p className="text-white/50 text-xl max-w-2xl">
@@ -54,7 +54,7 @@ export default function CertificationPage() {
       {/* Cert Cards */}
       <section className="py-16 px-6 md:px-12">
         <div className="container mx-auto">
-          <h2 className="text-3xl font-black uppercase tracking-tighter mb-10" style={{ fontFamily: "var(--font-grotesk)" }}>Available Certifications</h2>
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter mb-10" style={{ fontFamily: "var(--font-grotesk)" }}>Available Certifications</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {certifications.map((cert) => (
               <div key={cert.id} className={`relative p-8 border bg-gradient-to-br ${cert.color} to-transparent overflow-hidden group`}>

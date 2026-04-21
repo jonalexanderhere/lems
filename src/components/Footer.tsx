@@ -13,11 +13,11 @@ export function Footer() {
         
         {/* Second CTA Section */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto mb-32">
-          <h2 className="text-4xl md:text-7xl font-heading font-bold text-white uppercase tracking-tighter leading-[0.9] mb-6">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-heading font-bold text-white uppercase tracking-tighter leading-[0.95] mb-6">
             You do not need more theory. <br/>
             <span className="text-accent">You need execution.</span>
           </h2>
-          <p className="text-xl md:text-2xl text-white/60 font-light mb-12">
+          <p className="text-lg md:text-xl text-white/60 font-light mb-12">
             Build real skills. Start now.
           </p>
           <Link 
@@ -34,7 +34,7 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-end gap-12 border-t border-white/10 pt-12">
           
           <div className="w-full md:w-auto">
-            <h3 className="text-2xl md:text-3xl font-heading font-bold text-white uppercase tracking-tight mb-6">
+            <h3 className="text-xl md:text-2xl font-heading font-bold text-white uppercase tracking-tight mb-6">
               Ready to become <br/>an engineer?
             </h3>
             <Link 
