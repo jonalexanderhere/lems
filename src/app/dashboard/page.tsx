@@ -89,11 +89,14 @@ export default async function DashboardPage() {
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
               Halo, {profile?.full_name?.split(" ")[0] ?? "Engineer"}.
             </h1>
-            {profile?.classes && (
-              <p className="text-white/50 mt-2 text-lg font-mono">
-                {(profile.classes as unknown as { name: string }).name} - {new Date().getFullYear()}
-              </p>
-            )}
+            <div className="flex items-center gap-3 mt-4">
+              <span className="px-3 py-1 bg-[#FF2D2D]/10 border border-[#FF2D2D]/20 text-[#FF2D2D] text-xs font-black uppercase tracking-widest">
+                {profile?.classes ? (profile.classes as any).name : "Tanpa Kelas"}
+              </span>
+              <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
+                Academic Year {new Date().getFullYear()}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/dashboard/attendance" className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all text-sm font-bold uppercase tracking-widest">
