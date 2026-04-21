@@ -246,6 +246,29 @@ export default function TeacherDashboard() {
       setAttRecords(mapping);
     };
     fetchAttendance();
+
+    // REAL-TIME SUBSCRIPTION
+    const channel = supabase
+      .channel('attendance_updates')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance_logs' }, (payload) => {
+        const newLog = payload.new as { student_id: string; status: string; created_at: string };
+        // Only update if it's for the current selected date
+        const logDate = newLog.created_at.split("T")[0];
+        if (logDate === attDate) {
+          setAttRecords(prev => ({ ...prev, [newLog.student_id]: newLog.status }));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
+        const newRec = payload.new as { student_id: string; status: string; date: string };
+        if (newRec.date === attDate) {
+          setAttRecords(prev => ({ ...prev, [newRec.student_id]: newRec.status }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [tab, attDate, attClassId, attStartTime, attEndTime, supabase]);
 
   const handleSaveAttendance = async () => {
