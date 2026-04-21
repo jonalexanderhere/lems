@@ -28,7 +28,7 @@ export async function GET() {
   ]);
 
   const users = (profiles ?? []).map((row) => {
-    const authUser = authUsers.users.find((entry) => entry.id === row.id);
+    const authUser = authUsers?.users?.find((entry) => entry.id === row.id);
     const classEntry = Array.isArray(row.classes) ? row.classes[0] ?? null : row.classes;
     return {
       id: row.id,

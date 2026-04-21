@@ -30,7 +30,7 @@ type Submission = {
 
 export default function AssignmentPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = params?.id as string;
   const supabase = useMemo(() => createClient(), []);
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);

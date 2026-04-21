@@ -5,13 +5,15 @@ import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
 import { Plus, Edit2, Trash2, ArrowLeft, GripVertical, CheckCircle2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 type Lesson = { id: string; title: string; video_url: string; content: string; sort_order: number };
 type Module = { id: string; title: string; sort_order: number; lessons: Lesson[] };
 
-export default function CourseBuilder({ params }: { params: { id: string } }) {
+export default function CourseBuilder() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
   const supabase = useMemo(() => createClient(), []);
   const [course, setCourse] = useState<{ title: string; id: string } | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
@@ -23,12 +25,13 @@ export default function CourseBuilder({ params }: { params: { id: string } }) {
   const [lessonForm, setLessonForm] = useState<{ module_id: string; title: string; video_url: string; content: string } | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     const init = async () => {
-      const { data: c } = await supabase.from("courses").select("id, title").eq("id", params.id).single();
+      const { data: c } = await supabase.from("courses").select("id, title").eq("id", id).single();
       if (!c) { router.push("/dashboard/teacher"); return; }
       setCourse(c);
       
-      const { data: mods } = await supabase.from("modules").select("*, lessons(*)").eq("course_id", params.id).order("sort_order", { ascending: true });
+      const { data: mods } = await supabase.from("modules").select("*, lessons(*)").eq("course_id", id).order("sort_order", { ascending: true });
       // Sort lessons inside modules
       if (mods) {
         mods.forEach((m: any) => m.lessons.sort((a: any, b: any) => a.sort_order - b.sort_order));
@@ -37,12 +40,12 @@ export default function CourseBuilder({ params }: { params: { id: string } }) {
       setLoading(false);
     };
     init();
-  }, [params.id, router, supabase]);
+  }, [id, router, supabase]);
 
   const handleAddModule = async (e: React.FormEvent) => {
     e.preventDefault();
     const sort_order = modules.length;
-    const { data, error } = await supabase.from("modules").insert({ course_id: params.id, title: modTitle, sort_order }).select("*, lessons(*)").single();
+    const { data, error } = await supabase.from("modules").insert({ course_id: id, title: modTitle, sort_order }).select("*, lessons(*)").single();
     if (data) setModules([...modules, { ...data, lessons: [] }]);
     setShowModuleForm(false);
     setModTitle("");

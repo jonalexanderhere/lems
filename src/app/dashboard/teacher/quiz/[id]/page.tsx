@@ -38,7 +38,7 @@ const TYPE_LABELS: Record<string, string> = {
 export default function QuizDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const quizId = params.id as string;
+  const quizId = params?.id as string;
   const supabase = useMemo(() => createClient(), []);
 
   const [quiz, setQuiz] = useState<QuizInfo | null>(null);

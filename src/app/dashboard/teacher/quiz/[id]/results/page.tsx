@@ -20,7 +20,7 @@ type AttemptRow = {
 export default function QuizResultsPage() {
   const router = useRouter();
   const params = useParams();
-  const quizId = params.id as string;
+  const quizId = params?.id as string;
   const supabase = useMemo(() => createClient(), []);
   const [quizTitle, setQuizTitle] = useState("");
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);

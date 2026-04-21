@@ -130,6 +130,7 @@ export default function TeacherDashboard() {
     setSaving(true);
     setError("");
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setError("Sesi habis, silakan login kembali."); setSaving(false); return; }
     const { data, error: err } = await supabase.from("courses").insert({
       ...courseForm,
       teacher_id: user!.id,
@@ -148,6 +149,7 @@ export default function TeacherDashboard() {
     setSaving(true);
     setError("");
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setError("Sesi habis, silakan login kembali."); setSaving(false); return; }
     let attachmentUrl = null;
     let attachmentName = null;
 
