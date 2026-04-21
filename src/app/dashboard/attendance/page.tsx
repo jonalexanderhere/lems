@@ -228,7 +228,12 @@ export default function AttendancePage() {
     if (!descriptor) { setStatus("error"); setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik."); return; }
     const distance = faceApi.euclideanDistance(enrolledDescriptor, descriptor);
     const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
-    if (distance > 0.55) { setStatus("error"); setMessage(`Wajah tidak cocok. Jarak descriptor: ${distance.toFixed(3)}`); return; }
+    
+    // HABITUATION: If distance is too high, don't error out, just keep trying
+    if (distance > 0.55) { 
+      setMessage(`Wajah terdeteksi (Conf: ${(confidence*100).toFixed(0)}%), tapi kurang cocok. Posisikan wajah lebih pas...`); 
+      return; // The useEffect loop will trigger again in 3s
+    }
 
     // 1. Insert into logs (automated history)
     const { error } = await supabase.from("attendance_logs").insert({
@@ -251,7 +256,10 @@ export default function AttendancePage() {
 
 
     setStatus("success");
-    setMessage(`✓ Absensi berhasil! ${profile?.full_name ?? profile?.username ?? "Kamu"} — ${new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`);
+    setMessage(`✓ Absensi Berhasil! Identitas terkonfirmasi: ${profile?.full_name ?? profile?.username}. Absensi tercatat.`);
+    
+    // Auto reset to capturing after 5 seconds to allow next person (if multi-user)
+    // Or stay success if it's personal. Let's stay success for personal.
     clearOverlay();
     stopCamera();
     await fetchTodayRecords();

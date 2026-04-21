@@ -782,7 +782,8 @@ export default function TeacherDashboard() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
