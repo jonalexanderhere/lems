@@ -675,7 +675,7 @@ export default function TeacherDashboard() {
             <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
-                <p className="text-white/40 text-sm mt-2">Pilih tanggal dan kelas untuk mulai menginput absensi.</p>
+                <p className="text-white/40 text-sm mt-2">Terdaftar {students.length} murid di sistem.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-col">
@@ -716,8 +716,16 @@ export default function TeacherDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {students.filter(s => !attClassId || classes.find(c => c.id === attClassId)?.name === s.class_name).map(student => (
-                    <tr key={student.id} className="hover:bg-white/[0.02]">
+                  {students.filter(s => !attClassId || s.class_id === attClassId).length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-white/20 italic">
+                        Tidak ada data murid ditemukan {attClassId ? "di kelas ini" : ""}.
+                      </td>
+                    </tr>
+                  ) : (
+                    students.filter(s => !attClassId || s.class_id === attClassId).map(student => (
+                      <tr key={student.id} className="hover:bg-white/[0.02]">
+
                       <td className="px-6 py-4">
                         <p className="font-bold text-white">{student.full_name ?? student.username}</p>
                         <p className="text-white/30 text-xs">{student.email}</p>
