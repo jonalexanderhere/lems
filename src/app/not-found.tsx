@@ -3,7 +3,6 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <main className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white relative overflow-hidden">
-      {/* Glow */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-[600px] h-[600px] rounded-full bg-[#FF2D2D]/10 blur-[120px]" />
       </div>
@@ -25,7 +24,7 @@ export default function NotFound() {
           href="/"
           className="inline-flex items-center gap-3 px-8 py-4 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors duration-300"
         >
-          ← Return Home
+          {"<-"} Return Home
         </Link>
       </div>
     </main>
