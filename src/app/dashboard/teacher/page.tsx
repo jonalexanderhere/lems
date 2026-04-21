@@ -55,6 +55,12 @@ export default function TeacherDashboard() {
   // Assignment form
   const [assignForm, setAssignForm] = useState({ title: "", description: "", course_id: "", class_id: "", due_date: "" });
   const [assignFile, setAssignFile] = useState<File | null>(null);
+  // Attendance
+  const [attDate, setAttDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attClassId, setAttClassId] = useState("");
+  const [attRecords, setAttRecords] = useState<Record<string, string>>({});
+  const [attSaving, setAttSaving] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -207,6 +213,37 @@ export default function TeacherDashboard() {
     }
     setResetMessage(`Link reset password terkirim ke ${email}.`);
     setResettingEmail("");
+  };
+
+  useEffect(() => {
+    if (tab !== "attendance" || !attDate) return;
+    const fetchAttendance = async () => {
+      let query = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
+      if (attClassId) query = query.eq("class_id", attClassId);
+      const { data } = await query;
+      const mapping: Record<string, string> = {};
+      data?.forEach(r => mapping[r.student_id] = r.status);
+      setAttRecords(mapping);
+    };
+    fetchAttendance();
+  }, [tab, attDate, attClassId, supabase]);
+
+  const handleSaveAttendance = async () => {
+    setAttSaving(true);
+    const records = Object.entries(attRecords).map(([student_id, status]) => ({
+      student_id,
+      date: attDate,
+      status,
+      class_id: students.find(s => s.id === student_id)?.class_name ? 
+                classes.find(c => c.name === students.find(s => s.id === student_id)?.class_name)?.id : 
+                null
+    }));
+
+    for (const record of records) {
+      await supabase.from("attendance_records").upsert(record, { onConflict: "student_id, date" });
+    }
+    setAttSaving(false);
+    alert("Absensi berhasil disimpan!");
   };
 
   const reportRows = useMemo(() => {
@@ -606,14 +643,61 @@ export default function TeacherDashboard() {
             <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
-                <p className="text-white/40 text-sm mt-2">Pantau kehadiran harian murid berdasarkan kelas.</p>
+                <p className="text-white/40 text-sm mt-2">Pilih tanggal dan kelas untuk mulai menginput absensi.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="date" className={inputCls} value={attDate} onChange={(e) => setAttDate(e.target.value)} />
+                <select className={inputCls} value={attClassId} onChange={(e) => setAttClassId(e.target.value)}>
+                  <option value="">Semua Kelas</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
+                  {attSaving ? "Menyimpan..." : "Simpan Absen"}
+                </button>
               </div>
             </div>
             
-            <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
-                <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p>Fitur absensi manual sedang dalam pengembangan (WIP).</p>
-                <p className="text-xs mt-2 text-white/20">Akan ditambahkan di rilis berikutnya.</p>
+            <div className="overflow-x-auto border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/5 border-b border-white/10 text-xs uppercase font-bold tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4 text-white">Nama Murid</th>
+                    <th className="px-6 py-4 text-white">Kelas</th>
+                    <th className="px-6 py-4 text-center text-white">Status Kehadiran</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {students.filter(s => !attClassId || classes.find(c => c.id === attClassId)?.name === s.class_name).map(student => (
+                    <tr key={student.id} className="hover:bg-white/[0.02]">
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-white">{student.full_name ?? student.username}</p>
+                        <p className="text-white/30 text-xs">{student.email}</p>
+                      </td>
+                      <td className="px-6 py-4 text-white/50">{student.class_name ?? "-"}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-1">
+                          {[
+                            { id: 'present', label: 'H', color: 'bg-green-500' },
+                            { id: 'late', label: 'T', color: 'bg-yellow-500' },
+                            { id: 'sick', label: 'S', color: 'bg-blue-500' },
+                            { id: 'permission', label: 'I', color: 'bg-purple-500' },
+                            { id: 'absent', label: 'A', color: 'bg-red-500' },
+                          ].map(opt => (
+                            <button
+                              key={opt.id}
+                              onClick={() => setAttRecords({ ...attRecords, [student.id]: opt.id })}
+                              className={`w-8 h-8 rounded-full text-[10px] font-black transition-all ${attRecords[student.id] === opt.id ? `${opt.color} text-white scale-110 shadow-lg shadow-${opt.color.split('-')[1]}-500/20` : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                              title={opt.id.toUpperCase()}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
