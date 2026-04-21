@@ -52,6 +52,7 @@ export default function AttendancePage() {
   const [profile, setProfile] = useState<AttendanceProfile | null>(null);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
+  const [isScanning, setIsScanning] = useState(false);
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -89,8 +90,22 @@ export default function AttendancePage() {
       await fetchTodayRecords();
     };
     init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
+
+  // Automated scanning loop
+  useEffect(() => {
+    if (!modelsReady || !hasEnrollment || status === "success" || status === "loading-models") return;
+
+    let timer: NodeJS.Timeout;
+    if (status === "capturing" && !isScanning) {
+      timer = setInterval(async () => {
+        setIsScanning(true);
+        await verifyAttendance();
+        setIsScanning(false);
+      }, 3000); // Scan every 3 seconds
+    }
+    return () => clearInterval(timer);
+  }, [modelsReady, hasEnrollment, status, isScanning]);
 
   useEffect(() => {
     let mounted = true;
@@ -106,7 +121,10 @@ export default function AttendancePage() {
         setFaceApi(mod);
         setModelsReady(true);
         setStatus("ready");
-        setMessage("Model AI siap. Daftarkan wajah atau verifikasi absensi.");
+        setMessage("Model AI siap. Kamera akan dimulai otomatis...");
+        setTimeout(() => {
+          startCamera();
+        }, 1000);
       } catch {
         if (!mounted) return;
         setStatus("error");
@@ -229,9 +247,13 @@ export default function AttendancePage() {
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
               Absensi <span className="text-accent">Wajah</span>
             </h1>
-            <p className="text-white/50">
-              Daftarkan wajah sekali, lalu sistem AI akan mencocokkan absensi secara otomatis.
+            <p className="text-white/50 max-w-2xl mx-auto">
+              Teknologi rekognisi wajah Netvora menggunakan jaringan saraf tiruan (neural networks) untuk mendeteksi identitas secara instan tanpa perlu menyentuh perangkat. Solusi cerdas untuk absensi higienis dan anti-titip absen.
             </p>
+          </div>
+
+          <div className="bg-[#FF2D2D]/5 border border-[#FF2D2D]/20 p-6 mb-12 text-center">
+            <p className="text-sm font-mono text-[#FF2D2D] uppercase tracking-widest">Target: Siswa SMK TJKT & Praktisi IT</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -298,15 +320,12 @@ export default function AttendancePage() {
               </div>
 
               {/* Buttons */}
-              <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <Camera className="w-4 h-4" /> Kamera
                 </button>
-                <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                  <UserRoundPlus className="w-4 h-4" /> Daftar
-                </button>
-                <button onClick={verifyAttendance} disabled={isBusy || !hasEnrollment || !modelsReady} className="py-3 bg-accent text-white text-sm font-bold uppercase tracking-wide hover:bg-white hover:text-black transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Absensi
+                <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
                 </button>
               </div>
 
