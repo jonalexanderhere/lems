@@ -93,22 +93,25 @@ export default function AttendancePage() {
       setProfile((p ?? null) as AttendanceProfile | null);
 
       // Fetch active session
-      if (p?.class_id) {
-        const todayStr = new Date().toISOString().split("T")[0];
-        const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
-        if (sess) {
-          setSession(sess);
-          // Check if now is within window
-          const now = new Date();
-          const [sH, sM] = sess.start_time.split(":").map(Number);
-          const [eH, eM] = sess.end_time.split(":").map(Number);
-          const startTime = new Date(); startTime.setHours(sH, sM, 0);
-          const endTime = new Date(); endTime.setHours(eH, eM, 59);
-          setIsWithinWindow(now >= startTime && now <= endTime);
+      const fetchSession = async () => {
+        if (p?.class_id) {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
+          if (sess) setSession(sess);
         }
-      }
+      };
+      await fetchSession();
+
+      // Realtime listener for session changes
+      const channel = supabase
+        .channel('session_updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions', filter: `class_id=eq.${p?.class_id}` }, () => {
+          fetchSession();
+        })
+        .subscribe();
 
       await fetchTodayRecords();
+      return () => { supabase.removeChannel(channel); };
     };
     init();
   }, [supabase]);
