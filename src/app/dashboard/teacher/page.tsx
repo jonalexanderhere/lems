@@ -38,7 +38,7 @@ function firstItem<T>(value: T | T[] | null | undefined): T | null {
 export default function TeacherDashboard() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const [profile, setProfile] = useState<{ full_name: string; role: string } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; full_name: string | null; role: string } | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
@@ -71,7 +71,7 @@ export default function TeacherDashboard() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
-      const { data: p } = await supabase.from("profiles").select("full_name, role").eq("id", user.id).single();
+      const { data: p } = await supabase.from("profiles").select("id, full_name, role").eq("id", user.id).single();
       if (p?.role === "student") { router.push("/dashboard"); return; }
       setProfile(p);
       const { data: c } = await supabase.from("courses").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
