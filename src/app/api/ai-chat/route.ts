@@ -1,9 +1,15 @@
+import { OpenRouter } from "@openrouter/sdk";
 import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   const { messages } = await req.json();
+  const openrouter = new OpenRouter({
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+    httpReferer: "https://netvora.academy",
+    appTitle: "Netvora Academy AI Tutor",
+  });
 
   const systemPrompt = {
     role: "system",
@@ -17,29 +23,48 @@ export async function POST(req: NextRequest) {
 Respond in a clear, concise, and practical way. Use code blocks for commands and configs. Keep responses focused and educational. If asked something outside your scope, redirect to your specialization.`,
   };
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://netvora.academy",
-      "X-Title": "Netvora Academy AI Tutor",
-    },
-    body: JSON.stringify({
+  const stream = await openrouter.chat.send({
+    chatRequest: {
       model: "openai/gpt-4o-mini",
       messages: [systemPrompt, ...messages],
       stream: true,
-      max_tokens: 1024,
-    }),
+      maxTokens: 1024,
+    },
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    return new Response(`Error from OpenRouter: ${error}`, { status: 500 });
-  }
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          }
 
-  // Return the SSE stream directly to the client
-  return new Response(response.body, {
+          if (chunk.usage?.completionTokensDetails?.reasoningTokens != null) {
+            controller.enqueue(
+              encoder.encode(
+                `event: usage\ndata: ${JSON.stringify({
+                  reasoningTokens: chunk.usage.completionTokensDetails.reasoningTokens,
+                  promptTokens: chunk.usage.promptTokens,
+                  completionTokens: chunk.usage.completionTokens,
+                  totalTokens: chunk.usage.totalTokens,
+                })}\n\n`
+              )
+            );
+          }
+        }
+
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(readable, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",

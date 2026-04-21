@@ -1,3 +1,4 @@
+import { OpenRouter } from "@openrouter/sdk";
 import { NextResponse } from "next/server";
 
 type GradeRequest = {
@@ -33,15 +34,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://netvora.academy",
-        "X-Title": "Netvora Academy Auto Grader",
-      },
-      body: JSON.stringify({
+    const openrouter = new OpenRouter({
+      apiKey,
+      httpReferer: "https://netvora.academy",
+      appTitle: "Netvora Academy Auto Grader",
+    });
+
+    const response = await openrouter.chat.send({
+      chatRequest: {
         model: "openai/gpt-4o-mini",
         messages: [
           {
@@ -60,17 +60,12 @@ export async function POST(req: Request) {
             }),
           },
         ],
-        max_tokens: 250,
+        maxTokens: 250,
         temperature: 0.2,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      return NextResponse.json(fallback);
-    }
-
-    const json = await response.json();
-    const content = json?.choices?.[0]?.message?.content ?? "";
+    const content = response.choices[0]?.message?.content ?? "";
 
     try {
       const parsed = JSON.parse(content as string) as { score?: unknown; feedback?: unknown };

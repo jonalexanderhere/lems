@@ -2,6 +2,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { ShieldCheck, Award, Fingerprint, Eye } from "lucide-react";
 import Link from "next/link";
+import { CertificationQuiz } from "./CertificationQuiz";
 
 export const metadata = {
   title: "Certification | Netvora Academy",
@@ -77,6 +78,7 @@ export default function CertificationPage() {
           </div>
         </div>
       </section>
+      <CertificationQuiz />
       <Footer />
     </main>
   );
