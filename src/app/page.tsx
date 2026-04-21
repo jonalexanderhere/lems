@@ -9,6 +9,7 @@ import { Analytics } from "@/components/Analytics";
 import { AITutorTeaser } from "@/components/AITutorTeaser";
 import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { LiveCourseList } from "@/components/LiveCourseList";
+import { TrustBadges } from "@/components/TrustBadges";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -34,6 +35,7 @@ export default async function Home() {
       <Navigation />
       <Hero />
       <Statement />
+      <TrustBadges />
       <CourseCategories />
       <LiveCourseList courses={courses ?? []} />
       <AITutorTeaser />

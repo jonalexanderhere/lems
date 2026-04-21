@@ -1,4 +1,3 @@
-import { OpenRouter } from "@openrouter/sdk";
 import { NextRequest } from "next/server";
 
 export const runtime = "edge";
@@ -8,7 +7,7 @@ type LocalChatMessage = {
   content: string;
 };
 
-function createSseResponse(content: string, extra?: Record<string, unknown>) {
+function createSseResponse(content: string) {
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     start(controller) {
@@ -16,7 +15,6 @@ function createSseResponse(content: string, extra?: Record<string, unknown>) {
         encoder.encode(
           `data: ${JSON.stringify({
             choices: [{ delta: { content } }],
-            ...extra,
           })}\n\n`
         )
       );
@@ -61,8 +59,8 @@ export async function POST(req: NextRequest) {
     ?.content?.trim();
 
   const fallbackMessage = latestUserMessage
-    ? `Saya belum bisa terhubung ke model AI saat ini, jadi ini jawaban sementara: untuk pertanyaan "${latestUserMessage}", coba jelaskan topiknya lebih spesifik supaya saya bisa bantu dengan contoh konfigurasi atau langkah praktis.`
-    : "Saya belum bisa terhubung ke model AI saat ini. Coba kirim pertanyaan tentang networking, Cisco, Linux, atau cybersecurity.";
+    ? `Maaf, saya tidak dapat terhubung ke server AI saat ini. Coba lagi dalam beberapa saat.`
+    : "Maaf, terjadi kesalahan. Coba kirim pertanyaan tentang networking, Cisco, Linux, atau cybersecurity.";
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -78,58 +76,34 @@ export async function POST(req: NextRequest) {
 - Cybersecurity (penetration testing, firewalls, IDS/IPS, VPN)
 - Network troubleshooting and debugging
 
-Respond in a clear, concise, and practical way. Use code blocks for commands and configs. Keep responses focused and educational. If asked something outside your scope, redirect to your specialization.`,
+Respond in a clear, concise, and practical way. Use code blocks for commands and configs. Keep responses focused and educational. Always respond in the same language as the user's question (Indonesian or English). If asked something outside your scope, redirect to your specialization.`,
   };
 
-  const openrouter = new OpenRouter({
-    apiKey,
-    httpReferer: "https://netvora.academy",
-    appTitle: "Netvora Academy AI Tutor",
-  });
-
   try {
-    const stream = await openrouter.chat.send({
-      chatRequest: {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://netvora.academy",
+        "X-Title": "Netvora Academy AI Tutor",
+      },
+      body: JSON.stringify({
         model: "openai/gpt-4o-mini",
-        messages: [systemPrompt, ...messages] as never,
+        messages: [systemPrompt, ...messages],
         stream: true,
-        maxTokens: 1024,
-      },
+        max_tokens: 1024,
+      }),
     });
 
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content;
-            if (content) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
-            }
+    if (!response.ok || !response.body) {
+      const errText = await response.text().catch(() => "unknown error");
+      console.error("OpenRouter error:", response.status, errText);
+      return createSseResponse(fallbackMessage);
+    }
 
-            if (chunk.usage?.completionTokensDetails?.reasoningTokens != null) {
-              controller.enqueue(
-                encoder.encode(
-                  `event: usage\ndata: ${JSON.stringify({
-                    reasoningTokens: chunk.usage.completionTokensDetails.reasoningTokens,
-                    promptTokens: chunk.usage.promptTokens,
-                    completionTokens: chunk.usage.completionTokens,
-                    totalTokens: chunk.usage.totalTokens,
-                  })}\n\n`
-                )
-              );
-            }
-          }
-
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch {
-          controller.error(new Error("OpenRouter stream failed"));
-        }
-      },
-    });
-
-    return new Response(readable, {
+    // Pass the stream directly through
+    return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
@@ -137,7 +111,8 @@ Respond in a clear, concise, and practical way. Use code blocks for commands and
         "X-Accel-Buffering": "no",
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("AI chat error:", err);
     return createSseResponse(fallbackMessage);
   }
 }
