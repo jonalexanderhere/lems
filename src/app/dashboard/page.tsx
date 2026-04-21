@@ -37,11 +37,13 @@ export default function DashboardPage() {
       
       setProfile(p);
 
+      const classFilter = p?.class_id ? `class_id.eq.${p.class_id},class_id.is.null` : `class_id.is.null`;
+
       const [{ data: cl }, { data: asgn }, { data: qz }, { data: crs }, { data: sub }, { data: att }] = await Promise.all([
         supabase.from("classes").select("*").order("name"),
-        supabase.from("assignments").select("*, courses(title)").eq("class_id", p?.class_id ?? "").order("due_date", { ascending: true }).limit(5),
-        supabase.from("quizzes").select("id, title, end_at").or(`class_id.eq.${p?.class_id},class_id.is.null`).eq("is_published", true),
-        supabase.from("courses").select("*").or(`class_id.eq.${p?.class_id},class_id.is.null`).eq("is_published", true).limit(6),
+        supabase.from("assignments").select("*, courses(title)").eq("class_id", p?.class_id ?? "00000000-0000-0000-0000-000000000000").order("due_date", { ascending: true }).limit(5),
+        supabase.from("quizzes").select("id, title, end_at").or(classFilter).eq("is_published", true),
+        supabase.from("courses").select("*").or(classFilter).eq("is_published", true).limit(6),
         supabase.from("submissions").select("assignment_id").eq("student_id", user.id),
         supabase.from("quiz_attempts").select("quiz_id").eq("student_id", user.id),
       ]);
@@ -58,6 +60,7 @@ export default function DashboardPage() {
   }, [router, supabase]);
 
   const handleJoinClass = async (classId: string) => {
+    if (!profile?.id) return;
     setJoining(true);
     const { error } = await supabase.from("profiles").update({ class_id: classId }).eq("id", profile.id);
     if (!error) window.location.reload();
