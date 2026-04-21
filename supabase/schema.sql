@@ -479,3 +479,47 @@ create policy "Teacher read all progress" on lesson_progress for select using (e
 
 create policy "Student read own attendance" on attendance_records for select using (auth.uid() = student_id);
 create policy "Teacher manage attendance" on attendance_records for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+
+-- 5. Quizzes System
+create table if not exists quizzes (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid references courses(id) on delete cascade,
+  title text not null,
+  description text,
+  time_limit_minutes int default 60,
+  passing_score int default 75,
+  is_published boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists quiz_questions (
+  id uuid primary key default gen_random_uuid(),
+  quiz_id uuid references quizzes(id) on delete cascade,
+  content text not null,
+  options jsonb not null, -- Array of strings
+  correct_option_index int not null,
+  explanation text,
+  sort_order int default 0
+);
+
+create table if not exists quiz_submissions (
+  id uuid primary key default gen_random_uuid(),
+  quiz_id uuid references quizzes(id) on delete cascade,
+  student_id uuid references profiles(id) on delete cascade,
+  score int not null,
+  passed boolean not null,
+  answers jsonb, -- Map of question_id -> selected_index
+  submitted_at timestamptz default now()
+);
+
+alter table quizzes enable row level security;
+alter table quiz_questions enable row level security;
+alter table quiz_submissions enable row level security;
+
+create policy "Public read quizzes" on quizzes for select using (true);
+create policy "Teacher manage quizzes" on quizzes for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+create policy "Public read questions" on quiz_questions for select using (true);
+create policy "Teacher manage questions" on quiz_questions for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+create policy "Student view own submissions" on quiz_submissions for select using (auth.uid() = student_id);
+create policy "Student submit quiz" on quiz_submissions for insert with check (auth.uid() = student_id);
+create policy "Teacher view all submissions" on quiz_submissions for select using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
