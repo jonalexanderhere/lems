@@ -236,9 +236,86 @@ export default function NewQuizPage() {
         {/* STEP 2: Questions */}
         {step === "questions" && (
           <form onSubmit={handleSaveQuestions} className="space-y-6">
-            <div className="p-4 bg-white/5 border border-white/10 text-white/60 text-sm flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-bold">i</span>
-              Isi semua soal lalu klik Simpan. Semua soal pilihan ganda (A-D).
+            <div className="flex flex-col gap-4 p-6 bg-white/5 border border-white/10">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-accent">Bulk Import Soal (Opsional)</h3>
+              <p className="text-xs text-white/40">Gunakan format: <code className="text-white">Pertanyaan | Pilihan A | Pilihan B | Pilihan C | Pilihan D | Jawaban(a/b/c/d)</code></p>
+              <textarea 
+                className={inputCls + " font-mono text-[10px] resize-none"} 
+                rows={4} 
+                placeholder="Contoh: Apa itu IP? | Internet Protocol | Internal Proc | Int Prop | Is Port | a"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    const lines = (e.currentTarget.value).split('\n').filter(l => l.includes('|'));
+                    const newQs = lines.map(line => {
+                      const parts = line.split('|').map(p => p.trim());
+                      return {
+                        question_text: parts[0] || "",
+                        option_a: parts[1] || "",
+                        option_b: parts[2] || "",
+                        option_c: parts[3] || "",
+                        option_d: parts[4] || "",
+                        correct_option: (parts[5]?.toLowerCase() as any) || "a",
+                        points: 10
+                      };
+                    });
+                    if (newQs.length > 0) {
+                      setQuestions(newQs);
+                      e.currentTarget.value = "";
+                    }
+                  }
+                }}
+              />
+              <p className="text-[10px] text-white/20 italic">Tekan Ctrl+Enter untuk memproses teks di atas ke daftar soal di bawah.</p>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10">
+              <div className="text-white/60 text-sm flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-black">i</span>
+                Isi semua soal lalu klik Simpan. Semua soal pilihan ganda (A-D).
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setSaving(true);
+                  // Mock AI generation based on title
+                  setTimeout(() => {
+                    const aiQuestions: Question[] = [
+                      {
+                        question_text: `Apa yang dimaksud dengan ${form.title.split("-")[0].trim() || "materi ini"}?`,
+                        option_a: "Opsi jawaban yang benar",
+                        option_b: "Opsi pengecoh satu",
+                        option_c: "Opsi pengecoh dua",
+                        option_d: "Opsi pengecoh tiga",
+                        correct_option: "a",
+                        points: 10,
+                      },
+                      {
+                        question_text: "Manakah dari berikut ini yang merupakan implementasi terbaik?",
+                        option_a: "Metode A",
+                        option_b: "Metode B",
+                        option_c: "Metode C",
+                        option_d: "Metode D",
+                        correct_option: "b",
+                        points: 10,
+                      },
+                      {
+                        question_text: "Apa keuntungan utama menggunakan teknologi ini?",
+                        option_a: "Efisiensi tinggi",
+                        option_b: "Biaya mahal",
+                        option_c: "Lambat",
+                        option_d: "Sulit dipelajari",
+                        correct_option: "a",
+                        points: 10,
+                      }
+                    ];
+                    setQuestions([...aiQuestions]);
+                    setSaving(false);
+                  }, 1500);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-accent/20 text-accent border border-accent/30 text-xs font-bold uppercase tracking-widest hover:bg-accent/30 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> AI Generate (Beta)
+              </button>
             </div>
 
             {questions.map((q, idx) => (

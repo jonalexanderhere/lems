@@ -175,8 +175,14 @@ export default function QuizDashboard() {
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest ${TYPE_COLORS[quiz.type] ?? "bg-white/10 text-white/60"}`}>
                         {TYPE_LABELS[quiz.type] ?? quiz.type}
                       </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${quiz.is_published ? "bg-green-500/20 text-green-400" : "bg-white/10 text-white/40"}`}>
-                        {quiz.is_published ? <><CheckCircle2 className="w-3 h-3" /> Aktif</> : <><XCircle className="w-3 h-3" /> Draft</>}
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${
+                        quiz.end_at && new Date(quiz.end_at) < new Date() 
+                        ? "bg-amber-500/20 text-amber-400" 
+                        : quiz.is_published ? "bg-green-500/20 text-green-400" : "bg-white/10 text-white/40"
+                      }`}>
+                        {quiz.end_at && new Date(quiz.end_at) < new Date() 
+                        ? <><Clock className="w-3 h-3" /> Selesai</>
+                        : quiz.is_published ? <><CheckCircle2 className="w-3 h-3" /> Aktif</> : <><XCircle className="w-3 h-3" /> Draft</>}
                       </span>
                     </div>
                     <h3 className="font-bold text-white text-lg leading-tight mb-2">{quiz.title}</h3>

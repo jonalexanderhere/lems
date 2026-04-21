@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   // Fetch quizzes
   const { data: quizzes } = await supabase
     .from("quizzes")
-    .select("id, title")
+    .select("id, title, end_at")
     .or(`class_id.eq.${profile?.class_id},class_id.is.null`)
     .eq("is_published", true);
 
@@ -62,8 +62,13 @@ export default async function DashboardPage() {
   const submittedIds = new Set(submissions?.map((s) => s.assignment_id) ?? []);
   const pendingAssignments = assignments?.filter((a) => !submittedIds.has(a.id)) ?? [];
 
+  const now = new Date();
   const attemptedQuizIds = new Set(quizAttempts?.map((q) => q.quiz_id) ?? []);
-  const pendingQuizzes = quizzes?.filter((q) => !attemptedQuizIds.has(q.id)) ?? [];
+  const pendingQuizzes = quizzes?.filter((q) => {
+    const isAttempted = attemptedQuizIds.has(q.id);
+    const isExpired = q.end_at && new Date(q.end_at) < now;
+    return !isAttempted && !isExpired;
+  }) ?? [];
 
   const signOut = async () => {
     "use server";
