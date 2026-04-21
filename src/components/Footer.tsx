@@ -54,8 +54,9 @@ export function Footer() {
           
         </div>
         
-        <div className="mt-16 text-center md:text-left text-white/30 text-xs uppercase tracking-widest">
-          &copy; {new Date().getFullYear()} Netvora Academy. All Rights Reserved.
+        <div className="mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-white/30 text-xs uppercase tracking-widest border-t border-white/5 pt-8">
+          <div>&copy; {new Date().getFullYear()} Netvora Academy. Seluruh Hak Cipta Dilindungi.</div>
+          <div className="font-bold text-accent">Dibuat oleh Ghifari Azhar</div>
         </div>
       </div>
     </footer>

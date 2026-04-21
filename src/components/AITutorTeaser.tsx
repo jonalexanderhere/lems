@@ -12,9 +12,9 @@ if (typeof window !== "undefined") {
 }
 
 const features = [
-  { icon: Terminal, text: "Explain networking concepts" },
-  { icon: ShieldAlert, text: "Help config Cisco/Linux" },
-  { icon: Code2, text: "Debug infrastructure code" }
+  { icon: Terminal, text: "Jelaskan konsep jaringan" },
+  { icon: ShieldAlert, text: "Bantu config Cisco/Linux" },
+  { icon: Code2, text: "Debug kode infrastruktur" }
 ];
 
 export function AITutorTeaser() {
@@ -56,14 +56,14 @@ export function AITutorTeaser() {
             <div className="space-y-4">
               <div className="ai-text inline-flex items-center gap-2 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-accent font-medium text-sm mb-4">
                 <Bot className="w-4 h-4" />
-                <span>Beta Access</span>
+                <span>Akses Beta</span>
               </div>
               <h2 className="ai-text text-5xl md:text-7xl font-heading font-bold text-white uppercase tracking-tight leading-[0.9]">
-                Your AI Mentor.<br/>
-                <span className="text-white/40">Always Online.</span>
+                Mentor AI Anda.<br/>
+                <span className="text-white/40">Selalu Aktif.</span>
               </h2>
               <p className="ai-text text-xl md:text-2xl text-white/60 font-light max-w-lg mt-6">
-                Ask. Debug. Learn faster. A dedicated AI trained specifically on networking, sysadmin, and cybersecurity.
+                Tanya. Debug. Belajar lebih cepat. AI khusus yang dilatih untuk networking, sysadmin, dan cybersecurity.
               </p>
             </div>
 
@@ -84,7 +84,7 @@ export function AITutorTeaser() {
                 className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-background font-bold uppercase tracking-widest overflow-hidden"
               >
                 <div className="absolute inset-0 bg-accent translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-in-out" />
-                <span className="relative z-10 group-hover:text-white transition-colors duration-500 delay-75">Ask AI Now</span>
+                <span className="relative z-10 group-hover:text-white transition-colors duration-500 delay-75">Tanya AI Sekarang</span>
                 <ArrowRight className="relative z-10 w-5 h-5 group-hover:text-white transition-colors duration-500 delay-75 group-hover:translate-x-1" />
               </Link>
             </div>
@@ -102,15 +102,15 @@ export function AITutorTeaser() {
               
               <div className="flex-1 space-y-4 overflow-hidden relative">
                 <div className="p-4 bg-white/5 rounded-sm border border-white/5 max-w-[80%] float-right ml-auto text-white/70 text-sm">
-                  How do I configure a static route on Cisco IOS?
+                  Bagaimana cara konfigurasi static route di Cisco IOS?
                 </div>
                 
                 <div className="p-4 bg-accent/10 border border-accent/20 rounded-sm max-w-[90%] text-white text-sm font-mono leading-relaxed mt-16 shadow-[0_0_30px_rgba(255,45,45,0.1)]">
-                  To configure a static route in Cisco IOS, enter global configuration mode and use the following command format:
+                  Untuk konfigurasi static route di Cisco IOS, masuk ke mode konfigurasi global dan gunakan format perintah berikut:
                   <br/><br/>
                   <span className="text-accent">Router(config)#</span> ip route [destination_network] [subnet_mask] [next-hop_IP]
                   <br/><br/>
-                  For example:
+                  Contoh:
                   <br/>
                   <span className="text-accent">Router(config)#</span> ip route 192.168.2.0 255.255.255.0 10.0.0.2
                 </div>

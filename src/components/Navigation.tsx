@@ -7,12 +7,12 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
 const navLinks = [
-  { name: "Courses", href: "/courses" },
-  { name: "Learning Paths", href: "/paths" },
+  { name: "Kursus", href: "/courses" },
+  { name: "Alur Belajar", href: "/paths" },
   { name: "AI Tutor", href: "/ai-tutor" },
-  { name: "Leaderboard", href: "/leaderboard" },
-  { name: "Certification", href: "/certification" },
-  { name: "Contact", href: "/contact" },
+  { name: "Papan Skor", href: "/leaderboard" },
+  { name: "Sertifikasi", href: "/certification" },
+  { name: "Kontak", href: "/contact" },
 ];
 
 export function Navigation() {

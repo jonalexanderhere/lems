@@ -11,9 +11,9 @@ if (typeof window !== "undefined") {
 }
 
 const features = [
-  { icon: Target, title: "Skill breakdown", desc: "Identify your strongest domains and critical gaps." },
-  { icon: BrainCircuit, title: "AI recommendation", desc: "Personalized learning paths based on performance." },
-  { icon: Activity, title: "Performance graph", desc: "Visualize your growth over time with precision data." }
+  { icon: Target, title: "Analisis Skill", desc: "Identifikasi domain terkuat dan celah kritis Anda." },
+  { icon: BrainCircuit, title: "Rekomendasi AI", desc: "Alur belajar personal berdasarkan performa Anda." },
+  { icon: Activity, title: "Grafik Performa", desc: "Visualisasikan pertumbuhan Anda seiring waktu dengan data presisi." }
 ];
 
 export function Analytics() {
@@ -45,11 +45,11 @@ export function Analytics() {
       <div className="container mx-auto px-6 md:px-12">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="analytics-header text-4xl md:text-6xl font-heading font-bold text-white uppercase tracking-tight leading-[0.9] mb-6">
-            Track your progress.<br/>
-            <span className="text-accent">Fix your weakness.</span>
+            Pantau Progres.<br/>
+            <span className="text-accent">Perbaiki Kelemahan.</span>
           </h2>
           <p className="analytics-header text-lg md:text-xl text-white/60 font-light">
-            Stop guessing. Our AI analyzes every quiz, lab, and interaction to give you a clear map of your networking capabilities.
+            Berhenti menebak. AI kami menganalisis setiap kuis, lab, dan interaksi untuk memberi Anda peta kemampuan networking yang jelas.
           </p>
         </div>
 

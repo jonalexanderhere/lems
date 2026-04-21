@@ -60,15 +60,15 @@ export function Hero() {
       <div className="relative z-10 container mx-auto px-6 md:px-12 flex flex-col items-center md:items-start text-center md:text-left mt-16">
         <div ref={textRef} className="overflow-hidden">
           <h1 className="hero-text font-heading text-6xl md:text-8xl lg:text-[10rem] font-bold leading-[0.85] tracking-tighter uppercase text-white mb-2">
-            Train Like
+            Belajar Jadi
           </h1>
           <h1 className="hero-text font-heading text-6xl md:text-8xl lg:text-[10rem] font-bold leading-[0.85] tracking-tighter uppercase text-white">
-            An <span className="text-accent">Engineer.</span>
+            Seorang <span className="text-accent">Engineer.</span>
           </h1>
         </div>
         
         <p className="hero-text mt-8 max-w-2xl text-lg md:text-xl text-white/70 font-light">
-          Real networking. Real systems. AI-powered learning for future professionals. Build infrastructure that scales.
+          Networking nyata. Sistem nyata. Pembelajaran berbasis AI untuk profesional masa depan. Bangun infrastruktur yang andal.
         </p>
 
         <div className="hero-cta mt-12 flex flex-col sm:flex-row gap-6">
@@ -77,7 +77,7 @@ export function Hero() {
             className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-accent text-white font-bold uppercase tracking-widest overflow-hidden"
           >
             <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-in-out" />
-            <span className="relative z-10 group-hover:text-background transition-colors duration-500 delay-75">Start Learning</span>
+            <span className="relative z-10 group-hover:text-background transition-colors duration-500 delay-75">Mulai Belajar</span>
             <ArrowRight className="relative z-10 w-5 h-5 group-hover:text-background transition-colors duration-500 delay-75 group-hover:translate-x-1" />
             
             {/* Red Glow Effect */}
@@ -88,7 +88,7 @@ export function Hero() {
             href="/login" 
             className="group inline-flex items-center justify-center px-8 py-4 border border-white/20 text-white font-medium uppercase tracking-widest hover:border-white/60 transition-colors"
           >
-            Enter Dashboard
+            Masuk Dashboard
           </Link>
         </div>
       </div>

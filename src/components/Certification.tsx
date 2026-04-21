@@ -11,9 +11,9 @@ if (typeof window !== "undefined") {
 }
 
 const features = [
-  { icon: Award, text: "Industry-style design" },
-  { icon: Fingerprint, text: "Auto-generated upon completion" },
-  { icon: ShieldCheck, text: "Cryptographically verifiable" }
+  { icon: Award, text: "Desain standar industri" },
+  { icon: Fingerprint, text: "Otomatis dibuat saat selesai" },
+  { icon: ShieldCheck, text: "Dapat diverifikasi secara kriptografis" }
 ];
 
 export function Certification() {
@@ -63,7 +63,7 @@ export function Certification() {
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <div className="font-heading font-bold text-2xl tracking-wider text-white">NETVORA<span className="text-accent">.</span></div>
-                  <div className="text-white/40 text-xs tracking-widest uppercase mt-1">Academy of Engineering</div>
+                  <div className="text-white/40 text-xs tracking-widest uppercase mt-1">Akademi Engineering</div>
                 </div>
                 <div className="w-16 h-16 rounded-full border border-accent/30 flex items-center justify-center">
                   <ShieldCheck className="w-8 h-8 text-accent" />
@@ -71,19 +71,19 @@ export function Certification() {
               </div>
 
               <div className="text-center relative z-10">
-                <div className="text-white/50 text-sm tracking-widest uppercase mb-4">Certificate of Completion</div>
+                <div className="text-white/50 text-sm tracking-widest uppercase mb-4">Sertifikat Kelulusan</div>
                 <h3 className="font-heading font-bold text-3xl md:text-5xl text-white tracking-tight leading-tight">
-                  Advanced Cisco Routing
+                  Routing Cisco Tingkat Lanjut
                 </h3>
               </div>
 
               <div className="flex justify-between items-end relative z-10">
                 <div>
-                  <div className="text-white/50 text-xs uppercase tracking-widest mb-1">Awarded to</div>
+                  <div className="text-white/50 text-xs uppercase tracking-widest mb-1">Diberikan kepada</div>
                   <div className="font-mono text-xl text-white">net_hacker_zero</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white/50 text-xs uppercase tracking-widest mb-1">Verification ID</div>
+                  <div className="text-white/50 text-xs uppercase tracking-widest mb-1">ID Verifikasi</div>
                   <div className="font-mono text-accent text-sm">NV-8472-910X</div>
                 </div>
               </div>
@@ -93,8 +93,8 @@ export function Certification() {
           <div className="flex-1 w-full space-y-10 lg:pl-12">
             <div className="space-y-4">
               <h2 className="cert-text text-5xl md:text-7xl font-heading font-bold text-white uppercase tracking-tight leading-[0.9]">
-                Earn proof.<br/>
-                <span className="text-white/40">Not just knowledge.</span>
+                Dapatkan Bukti.<br/>
+                <span className="text-white/40">Bukan Sekadar Ilmu.</span>
               </h2>
             </div>
 
