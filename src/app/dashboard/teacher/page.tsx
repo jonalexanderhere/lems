@@ -61,6 +61,7 @@ export default function TeacherDashboard() {
   const [attClassId, setAttClassId] = useState("");
   const [attStartTime, setAttStartTime] = useState("00:00");
   const [attEndTime, setAttEndTime] = useState("23:59");
+  const [lastSessKey, setLastSessKey] = useState("");
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attSaving, setAttSaving] = useState(false);
 
@@ -220,22 +221,25 @@ export default function TeacherDashboard() {
     setResettingEmail("");
   };
 
-  // 1. EFFECT TO LOAD SESSION TIMES (When class/date changes)
+  // 1. EFFECT TO LOAD SESSION TIMES (ONLY when class/date selection actually changes)
   useEffect(() => {
     if (tab !== "attendance" || !attDate || !attClassId) return;
+    const currentKey = `${attClassId}-${attDate}`;
+    if (currentKey === lastSessKey) return; // Don't overwrite if user is editing the same session
+
     const loadSession = async () => {
       const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
       if (sess) {
         setAttStartTime(sess.start_time.substring(0, 5));
         setAttEndTime(sess.end_time.substring(0, 5));
       } else {
-        // Reset to default if no session found
         setAttStartTime("07:00");
         setAttEndTime("14:00");
       }
+      setLastSessKey(currentKey);
     };
     loadSession();
-  }, [tab, attDate, attClassId, supabase]);
+  }, [tab, attDate, attClassId, supabase, lastSessKey]);
 
   // 2. EFFECT TO FETCH ATTENDANCE RECORDS (When any filter changes)
   useEffect(() => {
