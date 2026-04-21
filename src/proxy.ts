@@ -25,12 +25,42 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  const pathname = request.nextUrl.pathname;
+
+  // Protect all /dashboard routes
+  if (pathname.startsWith('/dashboard')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    // Fetch role for authorized routes
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = profile?.role ?? 'student'
+
+    // Admin protecting
+    if (pathname.startsWith('/dashboard/admin') && role !== 'admin') {
+      return NextResponse.redirect(new URL(role === 'teacher' ? '/dashboard/teacher' : '/dashboard', request.url))
+    }
+
+    // Teacher protecting
+    if (pathname.startsWith('/dashboard/teacher') && role !== 'teacher' && role !== 'admin') {
+      return NextResponse.redirect(new URL(role === 'admin' ? '/dashboard/admin' : '/dashboard', request.url))
+    }
+    
+    // Ensure admin/teacher don't stay on student dashboard root if they navigate to /dashboard
+    if (pathname === '/dashboard') {
+       if (role === 'admin') return NextResponse.redirect(new URL('/dashboard/admin', request.url));
+       if (role === 'teacher') return NextResponse.redirect(new URL('/dashboard/teacher', request.url));
+    }
   }
 
-  // On login/signup page, if user is already logged in — redirect to role-specific dashboard
-  if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') && user) {
+  // Redirect if logged in and trying to access login/signup
+  if ((pathname === '/login' || pathname === '/signup') && user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')

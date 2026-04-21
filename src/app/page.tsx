@@ -2,25 +2,16 @@ import { createClient } from "@/utils/supabase/server";
 import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
 import { Statement } from "@/components/Statement";
-import { CourseCategories } from "@/components/CourseCategories";
+import { AboutNetvora } from "@/components/AboutNetvora";
 import { Footer } from "@/components/Footer";
 import { Awards } from "@/components/Awards";
 import { Analytics } from "@/components/Analytics";
 import { AITutorTeaser } from "@/components/AITutorTeaser";
 import { LiveLeaderboard } from "@/components/LiveLeaderboard";
-import { LiveCourseList } from "@/components/LiveCourseList";
 import { TrustBadges } from "@/components/TrustBadges";
 
 export default async function Home() {
   const supabase = await createClient();
-
-  // Fetch real courses (latest 4 published)
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("id, title, level, duration_hours, category, thumbnail_url")
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .limit(4);
 
   // Fetch real leaderboard (top 5 by XP)
   const { data: leaders } = await supabase
@@ -36,8 +27,7 @@ export default async function Home() {
       <Hero />
       <Statement />
       <TrustBadges />
-      <CourseCategories />
-      <LiveCourseList courses={courses ?? []} />
+      <AboutNetvora />
       <AITutorTeaser />
       <LiveLeaderboard leaders={leaders ?? []} />
       <Analytics />

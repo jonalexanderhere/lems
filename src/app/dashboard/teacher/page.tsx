@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, Eye, BarChart3, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, Eye, BarChart3, FileSpreadsheet, FileText, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -43,7 +43,7 @@ export default function TeacherDashboard() {
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
-  const [tab, setTab] = useState<"courses" | "assignments" | "students" | "reports">("courses");
+  const [tab, setTab] = useState<"courses" | "assignments" | "students" | "reports" | "attendance">("courses");
   const [reportClassId, setReportClassId] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
@@ -253,7 +253,7 @@ export default function TeacherDashboard() {
     XLSX.writeFile(workbook, `laporan-nilai-${selectedClassLabel.replace(/\s+/g, "-").toLowerCase()}.xlsx`);
   };
 
-  const downloadPdf = () => {
+  const downloadPDF = () => {
     const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(16);
     doc.text(`Laporan Nilai - ${selectedClassLabel}`, 14, 16);
@@ -303,10 +303,10 @@ export default function TeacherDashboard() {
 
         {/* Tabs */}
         <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
-          {(["courses", "assignments", "students", "reports"] as const).map((t) => (
+          {(["courses", "assignments", "students", "reports", "attendance"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-6 py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${tab === t ? "bg-[#FF2D2D] text-white" : "bg-white/5 text-white/50 hover:text-white"}`}>
-              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Reset Murid" : "Analisis & Laporan"}
+              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Murid" : t === "attendance" ? "Absensi" : "Analisis"}
             </button>
           ))}
           <Link href="/dashboard/teacher/quiz" className="px-6 py-2.5 text-sm font-bold uppercase tracking-widest bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors flex items-center gap-1.5">
@@ -373,8 +373,8 @@ export default function TeacherDashboard() {
                     <h3 className="font-bold text-white text-lg mb-1 flex-1">{c.title}</h3>
                     <p className="text-white/40 text-sm mb-4">{c.level}</p>
                     <div className="flex gap-2">
-                      <Link href={`/course/${c.id}`} className="flex items-center gap-1.5 px-3 py-2 bg-white/10 text-white text-xs font-bold uppercase tracking-wide hover:bg-white/20 transition-colors">
-                        <Eye className="w-3.5 h-3.5" /> View
+                      <Link href={`/dashboard/teacher/courses/${c.id}/builder`} className="flex items-center gap-1.5 px-3 py-2 bg-white/10 text-white text-xs font-bold uppercase tracking-wide hover:bg-white/20 transition-colors">
+                        <Edit2 className="w-3.5 h-3.5" /> Builder
                       </Link>
                       <button onClick={() => handleDeleteCourse(c.id)} className="flex items-center gap-1.5 px-3 py-2 bg-[#FF2D2D]/10 text-[#FF2D2D] text-xs font-bold uppercase tracking-wide hover:bg-[#FF2D2D]/20 transition-colors ml-auto">
                         <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -457,19 +457,17 @@ export default function TeacherDashboard() {
                   </select>
                 </div>
                 <div><label className={labelCls}>Due Date</label><input type="datetime-local" className={inputCls} value={assignForm.due_date} onChange={(e) => setAssignForm({ ...assignForm, due_date: e.target.value })} /></div>
-                <div>
-                  <label className={labelCls}>Attachment (PPT / PDF / Word / any file)</label>
-                  <label className="flex items-center gap-3 w-full border border-dashed border-white/20 px-4 py-4 cursor-pointer hover:border-[#FF2D2D]/50 transition-colors">
-                    <Upload className="w-5 h-5 text-[#FF2D2D] shrink-0" />
-                    <span className="text-white/50 text-sm truncate">
-                      {assignFile ? assignFile.name : "Click to attach file..."}
-                    </span>
-                    <input type="file" className="hidden" accept="*/*" onChange={(e) => setAssignFile(e.target.files?.[0] ?? null)} />
+                <div><label className={labelCls}>Attachment (optional)</label>
+                  <label className="flex items-center gap-3 w-full bg-[#0A0A0A] border border-white/10 px-4 py-2 cursor-pointer hover:border-[#FF2D2D]/50 transition-colors">
+                    <Upload className="w-4 h-4 text-white/50" />
+                    <span className="text-white text-sm truncate">{assignFile ? assignFile.name : "Choose File"}</span>
+                    <input type="file" className="hidden" onChange={(e) => setAssignFile(e.target.files?.[0] ?? null)} />
                   </label>
                 </div>
+                {error && <div className="md:col-span-2 p-4 bg-[#FF2D2D]/10 text-[#FF2D2D] text-sm">{error}</div>}
                 <div className="md:col-span-2 flex gap-3">
-                  <button type="submit" disabled={saving} className="px-6 py-3 bg-[#FF2D2D] text-white font-bold text-sm uppercase tracking-wider disabled:opacity-50">{saving ? "Uploading & Saving..." : "Create Assignment"}</button>
-                  <button type="button" onClick={() => setShowAssignmentForm(false)} className="px-6 py-3 bg-white/10 text-white font-bold text-sm uppercase tracking-wider">Cancel</button>
+                  <button type="submit" disabled={saving} className="px-6 py-3 bg-[#FF2D2D] text-white font-bold text-sm uppercase tracking-wider disabled:opacity-50">{saving ? "Saving..." : "Create Assignment"}</button>
+                  <button type="button" onClick={() => { setShowAssignmentForm(false); setAssignFile(null); }} className="px-6 py-3 bg-white/10 text-white font-bold text-sm uppercase tracking-wider">Cancel</button>
                 </div>
               </form>
             )}
@@ -480,19 +478,23 @@ export default function TeacherDashboard() {
                 <p>No assignments yet. Create your first assignment above.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {assignments.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-5 bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
+                  <div key={a.id} className="p-5 bg-white/5 border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-colors">
                     <div>
-                      <p className="font-bold text-white">{a.title}</p>
-                      <p className="text-white/40 text-sm">{(a.classes as { name: string } | null)?.name ?? "All Classes"} · {a.due_date ? new Date(a.due_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "No deadline"}</p>
+                      <h3 className="font-bold text-white text-lg mb-1">{a.title}</h3>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/40 text-xs font-mono">
+                        {a.courses && <span>Course: {a.courses.title}</span>}
+                        {a.classes && <span>Class: {a.classes.name}</span>}
+                        <span>Due: {a.due_date ? new Date(a.due_date).toLocaleString("id-ID") : "No Due Date"}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Link href={`/assignments/${a.id}/submissions`} className="flex items-center gap-1.5 px-3 py-2 bg-white/10 text-white text-xs font-bold uppercase tracking-wide hover:bg-white/20 transition-colors">
-                        <Users className="w-3.5 h-3.5" /> Submissions
+                    <div className="flex items-center gap-3">
+                      <Link href={`/assignments/${a.id}`} className="px-4 py-2 border border-white/20 text-white text-xs font-bold uppercase tracking-wider hover:bg-white hover:text-black transition-colors">
+                        View
                       </Link>
-                      <button onClick={() => handleDeleteAssignment(a.id)} className="flex items-center gap-1.5 px-3 py-2 bg-[#FF2D2D]/10 text-[#FF2D2D] text-xs font-bold uppercase tracking-wide hover:bg-[#FF2D2D]/20 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      <button onClick={() => handleDeleteAssignment(a.id)} className="p-2 text-white/20 hover:text-[#FF2D2D] transition-colors">
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -502,31 +504,26 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {/* REPORTS TAB */}
         {tab === "reports" && (
           <div className="space-y-8">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
               <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Analisis Nilai & Rekap</h2>
-                <p className="text-white/40 text-sm mt-2">Filter per kelas TJKT, lalu ekspor ke Excel atau PDF untuk laporan guru.</p>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Students Report</h2>
+                <p className="text-white/40 text-sm mt-2">Filter and download student assignment submissions.</p>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-3 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-sm font-bold uppercase tracking-widest hover:bg-emerald-500 hover:text-black transition-colors">
+              <div className="flex items-center gap-3">
+                <select className={inputCls + " min-w-[200px]"} value={reportClassId} onChange={(e) => setReportClassId(e.target.value)}>
+                  <option value="">All Classes</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-2.5 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-500/30 transition-all text-xs font-bold uppercase tracking-widest whitespace-nowrap">
                   <FileSpreadsheet className="w-4 h-4" /> Excel
                 </button>
-                <button onClick={downloadPdf} className="flex items-center gap-2 px-4 py-3 bg-white/5 text-white border border-white/10 text-sm font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+                <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2.5 bg-[#FF2D2D]/20 text-[#FF2D2D] hover:bg-[#FF2D2D] hover:text-white border border-[#FF2D2D]/30 transition-all text-xs font-bold uppercase tracking-widest whitespace-nowrap">
                   <FileText className="w-4 h-4" /> PDF
                 </button>
               </div>
-            </div>
-
-            <div className="max-w-sm">
-              <label className={labelCls}>Filter Kelas / TJKT</label>
-              <select value={reportClassId} onChange={(e) => setReportClassId(e.target.value)} className={inputCls}>
-                <option value="">Semua Kelas</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -599,6 +596,24 @@ export default function TeacherDashboard() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ATTENDANCE TAB */}
+        {tab === "attendance" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
+                <p className="text-white/40 text-sm mt-2">Pantau kehadiran harian murid berdasarkan kelas.</p>
+              </div>
+            </div>
+            
+            <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
+                <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Fitur absensi manual sedang dalam pengembangan (WIP).</p>
+                <p className="text-xs mt-2 text-white/20">Akan ditambahkan di rilis berikutnya.</p>
             </div>
           </div>
         )}

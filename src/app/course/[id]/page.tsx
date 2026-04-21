@@ -23,11 +23,18 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
 
   const classEntry = Array.isArray(course.classes) ? course.classes[0] ?? null : course.classes;
   const className = classEntry?.name ?? "Semua Kelas";
-  const modules = [
-    "Foundations and core concepts",
-    "Hands-on practice and guided lab",
-    "Quick review and checkpoint quiz",
-  ];
+
+  const { data: dbModules } = await supabase
+    .from("modules")
+    .select("*, lessons(*)")
+    .eq("course_id", id)
+    .order("sort_order", { ascending: true });
+
+  // sort lessons
+  const modules = (dbModules ?? []).map(m => ({
+    ...m,
+    lessons: m.lessons.sort((a: any, b: any) => a.sort_order - b.sort_order)
+  }));
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -72,15 +79,28 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
               </div>
             </div>
 
-            <div className="space-y-3">
-              {modules.map((module, index) => (
-                <div key={module} className="flex items-start gap-3 p-4 bg-black/20 border border-white/5">
-                  <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-xs font-bold text-white/70 shrink-0">
-                    {index + 1}
+            <div className="space-y-6">
+              {modules.length === 0 ? (
+                <div className="p-4 text-center text-white/40 border border-white/5 bg-black/20">Belum ada materi untuk course ini.</div>
+              ) : (
+                modules.map((module, i) => (
+                  <div key={module.id} className="bg-black/20 border border-white/5">
+                    <div className="p-4 border-b border-white/5 bg-white/5">
+                      <p className="font-bold text-white uppercase">BAB {i + 1}: {module.title}</p>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      {module.lessons.map((lesson: any, j: number) => (
+                        <Link key={lesson.id} href={`/course/${course.id}/learn/${lesson.id}`} className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors group">
+                          <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/50 group-hover:text-[#FF2D2D] group-hover:border-[#FF2D2D]/50 transition-colors shrink-0">
+                            {j + 1}
+                          </div>
+                          <p className="text-white/70 group-hover:text-white transition-colors">{lesson.title}</p>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-white/80">{module}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

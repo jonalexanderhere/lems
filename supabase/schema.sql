@@ -421,3 +421,61 @@ create policy "Teachers view all attempts"
     exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
   );
 
+-- =====================
+-- 14. COURSE MODULES & LESSONS
+-- =====================
+create table if not exists modules (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid references courses(id) on delete cascade,
+  title text not null,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+create table if not exists lessons (
+  id uuid primary key default gen_random_uuid(),
+  module_id uuid references modules(id) on delete cascade,
+  title text not null,
+  content text,
+  video_url text,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+create table if not exists lesson_progress (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references profiles(id) on delete cascade,
+  lesson_id uuid references lessons(id) on delete cascade,
+  completed boolean default false,
+  completed_at timestamptz,
+  unique(student_id, lesson_id)
+);
+
+create table if not exists attendance_records (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references profiles(id) on delete cascade,
+  class_id uuid references classes(id) on delete set null,
+  date date not null,
+  status text not null check (status in ('present', 'absent', 'late', 'sick', 'permission')),
+  notes text,
+  created_at timestamptz default now(),
+  unique(student_id, date)
+);
+
+alter table modules enable row level security;
+alter table lessons enable row level security;
+alter table lesson_progress enable row level security;
+alter table attendance_records enable row level security;
+
+create policy "Public read modules" on modules for select using (true);
+create policy "Teacher manage modules" on modules for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+
+create policy "Public read lessons" on lessons for select using (true);
+create policy "Teacher manage lessons" on lessons for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+
+create policy "Student own progress" on lesson_progress for select using (auth.uid() = student_id);
+create policy "Student manage own progress" on lesson_progress for all using (auth.uid() = student_id);
+create policy "Teacher read all progress" on lesson_progress for select using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+
+create policy "Student read own attendance" on attendance_records for select using (auth.uid() = student_id);
+create policy "Teacher manage attendance" on attendance_records for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));

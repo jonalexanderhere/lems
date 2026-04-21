@@ -33,6 +33,13 @@ export default async function DashboardPage() {
     .order("due_date", { ascending: true })
     .limit(5);
 
+  // Fetch quizzes
+  const { data: quizzes } = await supabase
+    .from("quizzes")
+    .select("id, title")
+    .or(`class_id.eq.${profile?.class_id},class_id.is.null`)
+    .eq("is_published", true);
+
   // Fetch courses available for student's class
   const { data: courses } = await supabase
     .from("courses")
@@ -47,8 +54,16 @@ export default async function DashboardPage() {
     .select("assignment_id")
     .eq("student_id", user.id);
 
+  const { data: quizAttempts } = await supabase
+    .from("quiz_attempts")
+    .select("quiz_id")
+    .eq("student_id", user.id);
+
   const submittedIds = new Set(submissions?.map((s) => s.assignment_id) ?? []);
   const pendingAssignments = assignments?.filter((a) => !submittedIds.has(a.id)) ?? [];
+
+  const attemptedQuizIds = new Set(quizAttempts?.map((q) => q.quiz_id) ?? []);
+  const pendingQuizzes = quizzes?.filter((q) => !attemptedQuizIds.has(q.id)) ?? [];
 
   const signOut = async () => {
     "use server";
@@ -132,38 +147,67 @@ export default async function DashboardPage() {
           <TerminalLab />
         </div>
 
-        {/* Pending Assignments */}
-        <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight mb-6" style={{ fontFamily: "var(--font-grotesk)" }}>
-            Tugas Mendatang
-          </h2>
-          {pendingAssignments.length === 0 ? (
-            <div className="p-8 bg-white/5 border border-white/10 text-center text-white/40">
-              <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p>Tidak ada tugas tertunda. Kamu hebat!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingAssignments.map((a) => {
-                const due = a.due_date ? new Date(a.due_date) : null;
-                const isOverdue = due && due < new Date();
-                return (
-                  <Link key={a.id} href={`/assignments/${a.id}`}
-                    className="flex items-center justify-between p-5 bg-white/5 border border-white/10 hover:border-[#FF2D2D]/40 transition-colors group">
+        {/* Pending Assignments & Quizzes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight mb-6" style={{ fontFamily: "var(--font-grotesk)" }}>
+              Tugas Mendatang
+            </h2>
+            {pendingAssignments.length === 0 ? (
+              <div className="p-8 bg-white/5 border border-white/10 text-center text-white/40">
+                <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Tidak ada tugas tertunda. Kamu hebat!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingAssignments.map((a) => {
+                  const due = a.due_date ? new Date(a.due_date) : null;
+                  const isOverdue = due && due < new Date();
+                  return (
+                    <Link key={a.id} href={`/assignments/${a.id}`}
+                      className="flex items-center justify-between p-5 bg-white/5 border border-white/10 hover:border-[#FF2D2D]/40 transition-colors group">
+                      <div>
+                        <p className="font-bold text-white group-hover:text-[#FF2D2D] transition-colors">{a.title}</p>
+                        <p className="text-white/40 text-sm">{(a.courses as { title: string })?.title}</p>
+                      </div>
+                      {due && (
+                        <span className={`text-xs font-mono px-3 py-1 ${isOverdue ? "bg-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/10 text-white/60"}`}>
+                          {isOverdue ? "TERLAMBAT" : due.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight mb-6 flex items-center gap-2" style={{ fontFamily: "var(--font-grotesk)" }}>
+              📝 Ujian & Ulangan
+            </h2>
+            {pendingQuizzes.length === 0 ? (
+              <div className="p-8 bg-white/5 border border-white/10 text-center text-white/40">
+                <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Belum ada ujian/ulangan yang tersedia.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingQuizzes.map((q) => (
+                  <div key={q.id}
+                    className="flex items-center justify-between p-5 bg-purple-500/10 border border-purple-500/20 group">
                     <div>
-                      <p className="font-bold text-white group-hover:text-[#FF2D2D] transition-colors">{a.title}</p>
-                      <p className="text-white/40 text-sm">{(a.courses as { title: string })?.title}</p>
+                      <p className="font-bold text-white">{q.title}</p>
+                      <p className="text-white/40 text-sm">Tersedia untuk dikerjakan</p>
                     </div>
-                    {due && (
-                      <span className={`text-xs font-mono px-3 py-1 ${isOverdue ? "bg-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/10 text-white/60"}`}>
-                        {isOverdue ? "TERLAMBAT" : due.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+                    <span className="text-xs font-mono px-3 py-1 bg-purple-500/20 text-purple-400">
+                      COMING SOON
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Courses */}
