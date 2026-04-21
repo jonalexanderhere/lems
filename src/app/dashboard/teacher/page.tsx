@@ -59,6 +59,8 @@ export default function TeacherDashboard() {
   // Attendance
   const [attDate, setAttDate] = useState(new Date().toISOString().split("T")[0]);
   const [attClassId, setAttClassId] = useState("");
+  const [attStartTime, setAttStartTime] = useState("00:00");
+  const [attEndTime, setAttEndTime] = useState("23:59");
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attSaving, setAttSaving] = useState(false);
 
@@ -223,9 +225,9 @@ export default function TeacherDashboard() {
     const fetchAttendance = async () => {
       // Fetch manual records for the day
       let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
-      // Fetch automated logs for the day (using wider range to handle timezones)
-      const start = `${attDate}T00:00:00`;
-      const end = `${attDate}T23:59:59`;
+      // Fetch automated logs for the day with time filter
+      const start = `${attDate}T${attStartTime}:00`;
+      const end = `${attDate}T${attEndTime}:59`;
       let logQuery = supabase.from("attendance_logs").select("student_id, status").gte("created_at", start).lte("created_at", end);
 
       const [{ data: manualData }, { data: logData }] = await Promise.all([manualQuery, logQuery]);
@@ -244,7 +246,7 @@ export default function TeacherDashboard() {
       setAttRecords(mapping);
     };
     fetchAttendance();
-  }, [tab, attDate, attClassId, supabase]);
+  }, [tab, attDate, attClassId, attStartTime, attEndTime, supabase]);
 
   const handleSaveAttendance = async () => {
     setAttSaving(true);
@@ -259,7 +261,21 @@ export default function TeacherDashboard() {
       await supabase.from("attendance_records").upsert(record, { onConflict: "student_id, date" });
     }
     setAttSaving(false);
-    alert("Absensi berhasil disimpan!");
+    alert("Absensi berhasil disimpan.");
+  };
+
+  const handleDeleteAttendance = async (studentId: string) => {
+    if (!confirm("Hapus data absensi murid ini?")) return;
+    setAttSaving(true);
+    await supabase.from("attendance_records").delete().eq("student_id", studentId).eq("date", attDate);
+    const start = `${attDate}T00:00:00`;
+    const end = `${attDate}T23:59:59`;
+    await supabase.from("attendance_logs").delete().eq("student_id", studentId).gte("created_at", start).lte("created_at", end);
+    
+    const newRecs = { ...attRecords };
+    delete newRecs[studentId];
+    setAttRecords(newRecs);
+    setAttSaving(false);
   };
 
   const reportRows = useMemo(() => {
@@ -661,15 +677,32 @@ export default function TeacherDashboard() {
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
                 <p className="text-white/40 text-sm mt-2">Pilih tanggal dan kelas untuk mulai menginput absensi.</p>
               </div>
-              <div className="flex items-center gap-3">
-                <input type="date" className={inputCls} value={attDate} onChange={(e) => setAttDate(e.target.value)} />
-                <select className={inputCls} value={attClassId} onChange={(e) => setAttClassId(e.target.value)}>
-                  <option value="">Semua Kelas</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-                  {attSaving ? "Menyimpan..." : "Simpan Absen"}
-                </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Tanggal</span>
+                  <input type="date" className={inputCls} value={attDate} onChange={(e) => setAttDate(e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Dari Jam</span>
+                  <input type="time" className={inputCls} value={attStartTime} onChange={(e) => setAttStartTime(e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Sampai Jam</span>
+                  <input type="time" className={inputCls} value={attEndTime} onChange={(e) => setAttEndTime(e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Kelas</span>
+                  <select className={inputCls} value={attClassId} onChange={(e) => setAttClassId(e.target.value)}>
+                    <option value="">Semua Kelas</option>
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] opacity-0 mb-1">.</span>
+                  <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
+                    {attSaving ? "..." : "Simpan"}
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -702,12 +735,19 @@ export default function TeacherDashboard() {
                             <button
                               key={opt.id}
                               onClick={() => setAttRecords({ ...attRecords, [student.id]: opt.id })}
-                              className={`w-8 h-8 rounded-full text-[10px] font-black transition-all ${attRecords[student.id] === opt.id ? `${opt.color} text-white scale-110 shadow-lg shadow-${opt.color.split('-')[1]}-500/20` : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                              className={`w-8 h-8 rounded-full text-[10px] font-black transition-all ${attRecords[student.id] === opt.id ? `${opt.color} text-white scale-110 shadow-lg` : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
                               title={opt.id.toUpperCase()}
                             >
                               {opt.label}
                             </button>
                           ))}
+                          <button
+                            onClick={() => handleDeleteAttendance(student.id)}
+                            className="w-8 h-8 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] flex items-center justify-center hover:bg-[#FF2D2D] hover:text-white transition-all ml-2"
+                            title="Hapus Data"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -108,25 +108,32 @@ export default function AttendancePage() {
   }, [modelsReady, hasEnrollment, status, isScanning]);
 
   useEffect(() => {
-    let mounted = true;
     const loadModels = async () => {
       try {
+        if (modelsReady) return;
         const mod = await import("face-api.js");
+        setFaceApi(mod);
+        setMessage("Sedang mengunduh neural network (5MB)...");
         await Promise.all([
           mod.nets.tinyFaceDetector.loadFromUri("/models"),
           mod.nets.faceLandmark68Net.loadFromUri("/models"),
           mod.nets.faceRecognitionNet.loadFromUri("/models"),
         ]);
-        if (!mounted) return;
-        setFaceApi(mod);
+        
+        setMessage("Mengoptimalkan model untuk perangkat Anda...");
+        // Warm up the models
+        const dummyCanvas = document.createElement("canvas");
+        dummyCanvas.width = 100;
+        dummyCanvas.height = 100;
+        await mod.detectSingleFace(dummyCanvas, new mod.TinyFaceDetectorOptions());
+        
         setModelsReady(true);
-        setStatus("ready");
-        setMessage("Model AI siap. Kamera akan dimulai otomatis...");
-        setTimeout(() => {
-          startCamera();
-        }, 1000);
-      } catch {
-        if (!mounted) return;
+        setStatus("capturing");
+        setMessage("Model AI siap. Memasuki mode deteksi otomatis...");
+        startCamera();
+      } catch (err) {
+        console.error("Model loading error:", err);
+        setMessage("Gagal memuat model. Pastikan koneksi stabil.");
         setStatus("error");
         setMessage("Model AI gagal dimuat. Pastikan folder /public/models tersedia.");
       }
