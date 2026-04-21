@@ -223,6 +223,15 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
     const fetchAttendance = async () => {
+      // Fetch the session configuration
+      if (attClassId) {
+        const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
+        if (sess) {
+          setAttStartTime(sess.start_time.substring(0, 5));
+          setAttEndTime(sess.end_time.substring(0, 5));
+        }
+      }
+
       // Fetch manual records for the day
       let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
       // Fetch automated logs for the day with time filter
@@ -246,6 +255,7 @@ export default function TeacherDashboard() {
       setAttRecords(mapping);
     };
     fetchAttendance();
+
 
     // REAL-TIME SUBSCRIPTION
     const channel = supabase
@@ -285,6 +295,23 @@ export default function TeacherDashboard() {
     }
     setAttSaving(false);
     alert("Absensi berhasil disimpan.");
+  };
+
+  const handleSaveSession = async () => {
+    if (!attClassId) { alert("Pilih kelas terlebih dahulu."); return; }
+    setAttSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("attendance_sessions").upsert({
+      class_id: attClassId,
+      date: attDate,
+      start_time: attStartTime,
+      end_time: attEndTime,
+      teacher_id: user?.id
+    }, { onConflict: "class_id, date" });
+
+    if (error) { alert("Gagal menyimpan sesi: " + error.message); }
+    else { alert("Sesi absensi berhasil ditetapkan untuk kelas ini."); }
+    setAttSaving(false);
   };
 
   const handleDeleteAttendance = async (studentId: string) => {
@@ -733,6 +760,9 @@ export default function TeacherDashboard() {
                 <div className="flex flex-col">
                   <span className="text-[10px] opacity-0 mb-1">.</span>
                   <div className="flex gap-2">
+                    <button onClick={handleSaveSession} disabled={attSaving} className="px-6 py-2.5 bg-white/10 text-white border border-white/20 font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
+                      {attSaving ? "..." : "Set Sesi"}
+                    </button>
                     <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
                       {attSaving ? "..." : "Simpan"}
                     </button>

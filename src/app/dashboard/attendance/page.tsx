@@ -53,6 +53,8 @@ export default function AttendancePage() {
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
+  const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
+  const [isWithinWindow, setIsWithinWindow] = useState(false);
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -87,6 +89,23 @@ export default function AttendancePage() {
         .single();
 
       setProfile((p ?? null) as AttendanceProfile | null);
+
+      // Fetch active session
+      if (p?.class_id) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
+        if (sess) {
+          setSession(sess);
+          // Check if now is within window
+          const now = new Date();
+          const [sH, sM] = sess.start_time.split(":").map(Number);
+          const [eH, eM] = sess.end_time.split(":").map(Number);
+          const startTime = new Date(); startTime.setHours(sH, sM, 0);
+          const endTime = new Date(); endTime.setHours(eH, eM, 59);
+          setIsWithinWindow(now >= startTime && now <= endTime);
+        }
+      }
+
       await fetchTodayRecords();
     };
     init();
@@ -222,6 +241,12 @@ export default function AttendancePage() {
     if (!faceApi || !userId || !enrolledDescriptor) return;
     if (status !== "capturing") await startCamera();
     if (!streamRef.current) return;
+    // ENFORCE WINDOW
+    if (!isWithinWindow) {
+      setMessage("Sesi absensi untuk kelas Anda belum dimulai atau sudah berakhir.");
+      return;
+    }
+
     setStatus("scanning");
     setMessage("Mencocokkan wajah dengan model AI...");
     const descriptor = await detectFace();
@@ -297,14 +322,18 @@ export default function AttendancePage() {
                   <p className="text-white/40 text-xs">{modelsReady ? "Siap" : "Memuat..."}</p>
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10 text-center">
-                  <ShieldCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
-                  <p className="font-bold text-xs mb-0.5">Wajah</p>
-                  <p className="text-white/40 text-xs">{hasEnrollment ? "Terdaftar ✓" : "Belum ada"}</p>
+                  <Clock className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Sesi Absen</p>
+                  <p className="text-white/40 text-[10px] truncate">
+                    {session ? `${session.start_time.substring(0, 5)} - ${session.end_time.substring(0, 5)}` : "Belum Set"}
+                  </p>
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10 text-center">
                   <BadgeCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
-                  <p className="font-bold text-xs mb-0.5">Kelas</p>
-                  <p className="text-white/40 text-xs truncate">{profile?.classes?.name ?? "—"}</p>
+                  <p className="font-bold text-xs mb-0.5">Status Sesi</p>
+                  <p className={`text-xs font-black uppercase tracking-tighter ${isWithinWindow ? "text-green-400" : "text-red-400"}`}>
+                    {isWithinWindow ? "AKTIF" : "TUTUP"}
+                  </p>
                 </div>
               </div>
 
