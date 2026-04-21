@@ -220,18 +220,27 @@ export default function TeacherDashboard() {
     setResettingEmail("");
   };
 
+  // 1. EFFECT TO LOAD SESSION TIMES (When class/date changes)
+  useEffect(() => {
+    if (tab !== "attendance" || !attDate || !attClassId) return;
+    const loadSession = async () => {
+      const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
+      if (sess) {
+        setAttStartTime(sess.start_time.substring(0, 5));
+        setAttEndTime(sess.end_time.substring(0, 5));
+      } else {
+        // Reset to default if no session found
+        setAttStartTime("07:00");
+        setAttEndTime("14:00");
+      }
+    };
+    loadSession();
+  }, [tab, attDate, attClassId, supabase]);
+
+  // 2. EFFECT TO FETCH ATTENDANCE RECORDS (When any filter changes)
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
     const fetchAttendance = async () => {
-      // Fetch the session configuration
-      if (attClassId) {
-        const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
-        if (sess) {
-          setAttStartTime(sess.start_time.substring(0, 5));
-          setAttEndTime(sess.end_time.substring(0, 5));
-        }
-      }
-
       // Fetch manual records for the day
       let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
       // Fetch automated logs for the day with time filter
@@ -242,19 +251,12 @@ export default function TeacherDashboard() {
       const [{ data: manualData }, { data: logData }] = await Promise.all([manualQuery, logQuery]);
 
       const mapping: Record<string, string> = {};
-      
-      // Automated logs (AI recognition)
-      logData?.forEach(r => {
-        if (r.student_id) mapping[r.student_id] = r.status;
-      });
-      // Manual records override automated ones
-      manualData?.forEach(r => {
-        if (r.student_id) mapping[r.student_id] = r.status;
-      });
-      
+      logData?.forEach(r => { if (r.student_id) mapping[r.student_id] = r.status; });
+      manualData?.forEach(r => { if (r.student_id) mapping[r.student_id] = r.status; });
       setAttRecords(mapping);
     };
     fetchAttendance();
+
 
 
     // REAL-TIME SUBSCRIPTION
