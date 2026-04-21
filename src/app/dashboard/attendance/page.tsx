@@ -130,16 +130,21 @@ export default function AttendancePage() {
         setModelsReady(true);
         setStatus("capturing");
         setMessage("Model AI siap. Memasuki mode deteksi otomatis...");
-        startCamera();
+        
+        // Start camera directly without checking state variable yet
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        streamRef.current = stream;
+        if (videoRef.current) { 
+          videoRef.current.srcObject = stream; 
+          await videoRef.current.play(); 
+        }
       } catch (err) {
-        console.error("Model loading error:", err);
-        setMessage("Gagal memuat model. Pastikan koneksi stabil.");
+        console.error("Model/Camera loading error:", err);
         setStatus("error");
-        setMessage("Model AI gagal dimuat. Pastikan folder /public/models tersedia.");
+        setMessage("Gagal memuat sistem AI atau kamera. Pastikan folder /models ada dan izin kamera aktif.");
       }
     };
     loadModels();
-    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
