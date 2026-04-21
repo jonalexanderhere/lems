@@ -39,6 +39,7 @@ export async function GET() {
       xp: row.xp ?? 0,
       avatar_url: row.avatar_url ?? null,
       badges: Array.isArray(row.badges) ? row.badges : [],
+      class_id: row.class_id,
       class_name: classEntry?.name ?? null,
     };
   });

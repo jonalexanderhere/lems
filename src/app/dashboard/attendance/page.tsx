@@ -218,6 +218,7 @@ export default function AttendancePage() {
     const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
     if (distance > 0.55) { setStatus("error"); setMessage(`Wajah tidak cocok. Jarak descriptor: ${distance.toFixed(3)}`); return; }
 
+    // 1. Insert into logs (automated history)
     const { error } = await supabase.from("attendance_logs").insert({
       student_id: userId,
       class_id: profile?.class_id,
@@ -225,7 +226,17 @@ export default function AttendancePage() {
       status: "present",
       confidence_score: confidence,
     });
-    if (error) { setStatus("error"); setMessage("Gagal menyimpan data absensi: " + error.message); return; }
+    if (error) { setStatus("error"); setMessage("Gagal menyimpan log absensi: " + error.message); return; }
+
+    // 2. Hard-insert into attendance_records (main dashboard data)
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.from("attendance_records").upsert({
+      student_id: userId,
+      class_id: profile?.class_id,
+      date: today,
+      status: "present",
+    }, { onConflict: "student_id, date" });
+
 
     setStatus("success");
     setMessage(`✓ Absensi berhasil! ${profile?.full_name ?? profile?.username ?? "Kamu"} — ${new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`);

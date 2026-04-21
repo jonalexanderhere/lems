@@ -18,6 +18,7 @@ type StudentAccount = {
   full_name: string | null;
   username: string | null;
   class_name: string | null;
+  class_id: string | null;
 };
 type ReportSubmission = {
   id: string;
@@ -220,24 +221,25 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
     const fetchAttendance = async () => {
-      // Fetch manual records
+      // Fetch manual records for the day
       let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
-      if (attClassId) manualQuery = manualQuery.eq("class_id", attClassId);
-      const { data: manualData } = await manualQuery;
-
-      // Fetch automated logs
-      const start = `${attDate}T00:00:00Z`;
-      const end = `${attDate}T23:59:59Z`;
+      // Fetch automated logs for the day (using wider range to handle timezones)
+      const start = `${attDate}T00:00:00`;
+      const end = `${attDate}T23:59:59`;
       let logQuery = supabase.from("attendance_logs").select("student_id, status").gte("created_at", start).lte("created_at", end);
-      if (attClassId) logQuery = logQuery.eq("class_id", attClassId);
-      const { data: logData } = await logQuery;
+
+      const [{ data: manualData }, { data: logData }] = await Promise.all([manualQuery, logQuery]);
 
       const mapping: Record<string, string> = {};
       
-      // Logs first (automated)
-      logData?.forEach(r => mapping[r.student_id] = r.status);
-      // Manual records override logs if present
-      manualData?.forEach(r => mapping[r.student_id] = r.status);
+      // Automated logs (AI recognition)
+      logData?.forEach(r => {
+        if (r.student_id) mapping[r.student_id] = r.status;
+      });
+      // Manual records override automated ones
+      manualData?.forEach(r => {
+        if (r.student_id) mapping[r.student_id] = r.status;
+      });
       
       setAttRecords(mapping);
     };
@@ -250,9 +252,7 @@ export default function TeacherDashboard() {
       student_id,
       date: attDate,
       status,
-      class_id: students.find(s => s.id === student_id)?.class_name ? 
-                classes.find(c => c.name === students.find(s => s.id === student_id)?.class_name)?.id : 
-                null
+      class_id: students.find(s => s.id === student_id)?.class_id || null
     }));
 
     for (const record of records) {
