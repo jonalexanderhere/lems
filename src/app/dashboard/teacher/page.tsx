@@ -418,10 +418,20 @@ export default function TeacherDashboard() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>My Courses</h2>
-              <button onClick={() => setShowCourseForm(!showCourseForm)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#FF2D2D] text-white text-sm font-bold uppercase tracking-wider hover:bg-white hover:text-black transition-colors">
-                <Plus className="w-4 h-4" /> New Course
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={async () => {
+                  if (confirm("HAPUS SEMUA MATERIMU? Tindakan ini tidak bisa dibatalkan.") && confirm("APAKAH ANDA YAKIN SEKALI?")) {
+                    await supabase.from("courses").delete().eq("teacher_id", profile?.id);
+                    setCourses([]);
+                  }
+                }} className="px-5 py-2.5 bg-white/5 text-white/40 text-xs font-bold uppercase tracking-wider hover:bg-[#FF2D2D] hover:text-white transition-all">
+                  Hapus Semua
+                </button>
+                <button onClick={() => setShowCourseForm(!showCourseForm)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#FF2D2D] text-white text-sm font-bold uppercase tracking-wider hover:bg-white hover:text-black transition-colors">
+                  <Plus className="w-4 h-4" /> New Course
+                </button>
+              </div>
             </div>
 
             {showCourseForm && (
@@ -722,9 +732,19 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] opacity-0 mb-1">.</span>
-                  <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-                    {attSaving ? "..." : "Simpan"}
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
+                      {attSaving ? "..." : "Simpan"}
+                    </button>
+                    <button onClick={async () => {
+                      if (confirm("Bersihkan semua absensi untuk tanggal ini?") && confirm("Yakin?")) {
+                        await supabase.from("attendance_records").delete().eq("date", attDate);
+                        setAttRecords({});
+                      }
+                    }} className="px-4 py-2.5 bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-all">
+                      Clear
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

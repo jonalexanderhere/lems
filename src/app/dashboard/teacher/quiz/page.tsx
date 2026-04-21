@@ -138,12 +138,23 @@ export default function QuizDashboard() {
               </h1>
               <p className="text-white/40 mt-2 text-sm">Buat ulangan harian dan ulangan semester dengan soal pilihan ganda.</p>
             </div>
-            <Link
-              href="/dashboard/teacher/quiz/new"
-              className="flex items-center gap-2 px-6 py-3 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
-            >
-              <Plus className="w-5 h-5" /> Buat Ujian
-            </Link>
+            <div className="flex items-center gap-2">
+              <button onClick={async () => {
+                if (confirm("HAPUS SEMUA UJIANMU? Semua data nilai siswa akan hilang.") && confirm("YAKIN?")) {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  await supabase.from("quizzes").delete().eq("teacher_id", user?.id);
+                  setQuizzes([]);
+                }
+              }} className="px-5 py-3 bg-white/5 text-white/40 text-xs font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-all">
+                Hapus Semua
+              </button>
+              <Link
+                href="/dashboard/teacher/quiz/new"
+                className="flex items-center gap-2 px-6 py-3 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+              >
+                <Plus className="w-5 h-5" /> Buat Ujian
+              </Link>
+            </div>
           </div>
         </div>
       </section>
