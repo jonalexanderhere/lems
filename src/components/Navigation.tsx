@@ -11,7 +11,6 @@ const navLinks = [
   { name: "Alur Belajar", href: "/paths" },
   { name: "AI Tutor", href: "/ai-tutor" },
   { name: "Papan Skor", href: "/leaderboard" },
-  { name: "Sertifikasi", href: "/certification" },
   { name: "Kontak", href: "/contact" },
 ];
 

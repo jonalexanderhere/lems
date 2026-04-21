@@ -4,11 +4,28 @@ import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, Eye } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, Eye, BarChart3, FileSpreadsheet, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
+type ReportSubmission = {
+  id: string;
+  score: number | null;
+  feedback: string | null;
+  submitted_at: string;
+  graded_at: string | null;
+  assignments: { title: string; class_id: string | null; classes: { name: string } | null } | null;
+  profiles: { full_name: string | null; username: string | null } | null;
+};
+
+function firstItem<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -17,7 +34,9 @@ export default function TeacherDashboard() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
-  const [tab, setTab] = useState<"courses" | "assignments">("courses");
+  const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
+  const [tab, setTab] = useState<"courses" | "assignments" | "reports">("courses");
+  const [reportClassId, setReportClassId] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
 
@@ -42,6 +61,45 @@ export default function TeacherDashboard() {
       setAssignments(a ?? []);
       const { data: cl } = await supabase.from("classes").select("id, name").order("grade").order("section");
       setClasses(cl ?? []);
+      const { data: s } = await supabase
+        .from("submissions")
+        .select("id, score, feedback, submitted_at, graded_at, assignments(title, class_id, classes(name)), profiles(full_name, username)")
+        .order("submitted_at", { ascending: false });
+      const normalized = (s ?? []).map((row: {
+        id: string;
+        score: number | null;
+        feedback: string | null;
+        submitted_at: string;
+        graded_at: string | null;
+        assignments?: Array<{ title: string; class_id: string | null; classes: Array<{ name: string }> | null }> | { title: string; class_id: string | null; classes: { name: string } | null } | null;
+        profiles?: Array<{ full_name: string | null; username: string | null }> | { full_name: string | null; username: string | null } | null;
+      }) => ({
+        id: row.id,
+        score: row.score,
+        feedback: row.feedback,
+        submitted_at: row.submitted_at,
+        graded_at: row.graded_at,
+        assignments: (() => {
+          const assignment = firstItem(row.assignments as {
+            title: string;
+            class_id: string | null;
+            classes: { name: string } | { name: string }[] | null;
+          }[] | {
+            title: string;
+            class_id: string | null;
+            classes: { name: string } | { name: string }[] | null;
+          } | null);
+          if (!assignment) return null;
+          const classEntry = firstItem(assignment.classes as { name: string } | { name: string }[] | null);
+          return {
+            title: assignment.title,
+            class_id: assignment.class_id,
+            classes: classEntry ? { name: classEntry.name } : null,
+          };
+        })(),
+        profiles: firstItem(row.profiles),
+      }));
+      setSubmissions(normalized as ReportSubmission[]);
     };
     init();
   }, [router, supabase]);
@@ -118,6 +176,75 @@ export default function TeacherDashboard() {
     router.push("/login");
   };
 
+  const reportRows = useMemo(() => {
+    return submissions.filter((submission) => {
+      if (!reportClassId) return true;
+      return submission.assignments?.class_id === reportClassId;
+    });
+  }, [reportClassId, submissions]);
+
+  const reportStats = useMemo(() => {
+    const graded = reportRows.filter((row) => typeof row.score === "number");
+    const scores = graded.map((row) => Number(row.score ?? 0));
+    const averageScore = scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : 0;
+    const passed = scores.filter((score) => score >= 80).length;
+    const pending = reportRows.filter((row) => row.score == null).length;
+
+    return {
+      total: reportRows.length,
+      graded: graded.length,
+      averageScore,
+      passRate: graded.length ? Math.round((passed / graded.length) * 100) : 0,
+      pending,
+    };
+  }, [reportRows]);
+
+  const exportRows = reportRows.map((row) => ({
+    Nama: row.profiles?.full_name ?? row.profiles?.username ?? "Unknown",
+    Username: row.profiles?.username ?? "-",
+    Kelas: row.assignments?.classes?.name ?? "Unknown",
+    Tugas: row.assignments?.title ?? "-",
+    Nilai: row.score ?? "",
+    Status: row.score == null ? "Belum dinilai" : row.score >= 80 ? "Lulus" : "Belum lulus",
+    Dikirim: row.submitted_at ? new Date(row.submitted_at).toLocaleString("id-ID") : "-",
+    Dinilai: row.graded_at ? new Date(row.graded_at).toLocaleString("id-ID") : "-",
+    Feedback: row.feedback ?? "",
+  }));
+
+  const selectedClassLabel = reportClassId ? classes.find((c) => c.id === reportClassId)?.name ?? "Semua Kelas" : "Semua Kelas";
+
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
+    XLSX.writeFile(workbook, `laporan-nilai-${selectedClassLabel.replace(/\s+/g, "-").toLowerCase()}.xlsx`);
+  };
+
+  const downloadPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(16);
+    doc.text(`Laporan Nilai - ${selectedClassLabel}`, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Total data: ${reportStats.total} | Rata-rata: ${reportStats.averageScore} | Lulus: ${reportStats.passRate}%`, 14, 24);
+    autoTable(doc, {
+      startY: 30,
+      head: [["Nama", "Username", "Kelas", "Tugas", "Nilai", "Status", "Dikirim", "Dinilai"]],
+      body: exportRows.map((row) => [
+        row.Nama,
+        row.Username,
+        row.Kelas,
+        row.Tugas,
+        row.Nilai === "" ? "-" : String(row.Nilai),
+        row.Status,
+        row.Dikirim,
+        row.Dinilai,
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 45, 45] },
+    });
+    doc.save(`laporan-nilai-${selectedClassLabel.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  };
+
   const inputCls = "w-full bg-[#0A0A0A] border border-white/10 px-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors text-sm";
   const labelCls = "block text-xs uppercase tracking-widest text-white/50 mb-2";
 
@@ -142,11 +269,11 @@ export default function TeacherDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="container mx-auto mt-8 flex gap-2">
-          {(["courses", "assignments"] as const).map((t) => (
+        <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
+          {(["courses", "assignments", "reports"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-6 py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${tab === t ? "bg-[#FF2D2D] text-white" : "bg-white/5 text-white/50 hover:text-white"}`}>
-              {t === "courses" ? "Materi & Kursus" : "Tugas & Proyek"}
+              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : "Analisis & Laporan"}
             </button>
           ))}
         </div>
@@ -294,6 +421,107 @@ export default function TeacherDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "reports" && (
+          <div className="space-y-8">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Analisis Nilai & Rekap</h2>
+                <p className="text-white/40 text-sm mt-2">Filter per kelas TJKT, lalu ekspor ke Excel atau PDF untuk laporan guru.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-3 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-sm font-bold uppercase tracking-widest hover:bg-emerald-500 hover:text-black transition-colors">
+                  <FileSpreadsheet className="w-4 h-4" /> Excel
+                </button>
+                <button onClick={downloadPdf} className="flex items-center gap-2 px-4 py-3 bg-white/5 text-white border border-white/10 text-sm font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+                  <FileText className="w-4 h-4" /> PDF
+                </button>
+              </div>
+            </div>
+
+            <div className="max-w-sm">
+              <label className={labelCls}>Filter Kelas / TJKT</label>
+              <select value={reportClassId} onChange={(e) => setReportClassId(e.target.value)} className={inputCls}>
+                <option value="">Semua Kelas</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="p-6 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Total Data</p>
+                <p className="text-3xl font-black text-white">{reportStats.total}</p>
+              </div>
+              <div className="p-6 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Rata-rata</p>
+                <p className="text-3xl font-black text-white">{reportStats.averageScore}</p>
+              </div>
+              <div className="p-6 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Lulus</p>
+                <p className="text-3xl font-black text-white">{reportStats.passRate}%</p>
+              </div>
+              <div className="p-6 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Belum Dinilai</p>
+                <p className="text-3xl font-black text-white">{reportStats.pending}</p>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <p className="text-sm uppercase tracking-widest text-white/40">Rekap Detail</p>
+                  <p className="text-white font-bold">{selectedClassLabel}</p>
+                </div>
+                <div className="flex items-center gap-2 text-white/40 text-sm">
+                  <BarChart3 className="w-4 h-4" />
+                  {reportStats.graded} data sudah dinilai
+                </div>
+              </div>
+              {reportRows.length === 0 ? (
+                <div className="p-12 text-center text-white/40">
+                  <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Belum ada data nilai untuk filter yang dipilih.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-white/5 text-white/40 uppercase text-xs font-bold">
+                      <tr>
+                        <th className="px-5 py-4">Siswa</th>
+                        <th className="px-5 py-4">Kelas</th>
+                        <th className="px-5 py-4">Tugas</th>
+                        <th className="px-5 py-4">Nilai</th>
+                        <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4">Dikirim</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {reportRows.map((row) => (
+                        <tr key={row.id} className="hover:bg-white/[0.02]">
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-white">{row.profiles?.full_name ?? row.profiles?.username ?? "Unknown"}</p>
+                            <p className="text-white/40 text-xs">{row.profiles?.username ?? "-"}</p>
+                          </td>
+                          <td className="px-5 py-4 text-white/70">{row.assignments?.classes?.name ?? "-"}</td>
+                          <td className="px-5 py-4 text-white/70">{row.assignments?.title ?? "-"}</td>
+                          <td className="px-5 py-4 font-bold text-white">{row.score ?? "-"}</td>
+                          <td className="px-5 py-4">
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${row.score == null ? "bg-white/10 text-white/50" : row.score >= 80 ? "bg-green-500/20 text-green-300" : "bg-[#FF2D2D]/20 text-[#FF2D2D]"}`}>
+                              {row.score == null ? "Belum dinilai" : row.score >= 80 ? "Lulus" : "Belum lulus"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-white/40 text-xs">{new Date(row.submitted_at).toLocaleString("id-ID")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

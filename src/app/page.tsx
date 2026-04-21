@@ -6,7 +6,6 @@ import { CourseCategories } from "@/components/CourseCategories";
 import { Footer } from "@/components/Footer";
 import { Awards } from "@/components/Awards";
 import { Analytics } from "@/components/Analytics";
-import { Certification } from "@/components/Certification";
 import { AITutorTeaser } from "@/components/AITutorTeaser";
 import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { LiveCourseList } from "@/components/LiveCourseList";
@@ -39,7 +38,6 @@ export default async function Home() {
       <LiveCourseList courses={courses ?? []} />
       <AITutorTeaser />
       <LiveLeaderboard leaders={leaders ?? []} />
-      <Certification />
       <Analytics />
       <Awards />
       <Footer />

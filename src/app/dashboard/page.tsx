@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera } from "lucide-react";
+import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera, Award } from "lucide-react";
 import { TerminalLab } from "@/components/TerminalLab";
 
 export const metadata = { title: "Dashboard | Netvora Academy" };
@@ -77,6 +77,9 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-4">
             <Link href="/dashboard/attendance" className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all text-sm font-bold uppercase tracking-widest">
               <Camera className="w-4 h-4" /> Absensi Wajah
+            </Link>
+            <Link href="/dashboard/certification" className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white hover:bg-white hover:text-black transition-all text-sm font-bold uppercase tracking-widest">
+              <Award className="w-4 h-4" /> Sertifikasi
             </Link>
             <form action={signOut}>
               <button type="submit" className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors">
