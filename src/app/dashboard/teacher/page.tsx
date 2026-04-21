@@ -12,6 +12,13 @@ import autoTable from "jspdf-autotable";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
+type StudentAccount = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  username: string | null;
+  class_name: string | null;
+};
 type ReportSubmission = {
   id: string;
   score: number | null;
@@ -35,10 +42,13 @@ export default function TeacherDashboard() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
-  const [tab, setTab] = useState<"courses" | "assignments" | "reports">("courses");
+  const [students, setStudents] = useState<StudentAccount[]>([]);
+  const [tab, setTab] = useState<"courses" | "assignments" | "students" | "reports">("courses");
   const [reportClassId, setReportClassId] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [resettingEmail, setResettingEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
   // Course form
   const [courseForm, setCourseForm] = useState({ title: "", description: "", category: "Networking", level: "Beginner", duration_hours: 0, class_id: "" });
@@ -61,6 +71,11 @@ export default function TeacherDashboard() {
       setAssignments(a ?? []);
       const { data: cl } = await supabase.from("classes").select("id, name").order("grade").order("section");
       setClasses(cl ?? []);
+      const response = await fetch("/api/management/users");
+      if (response.ok) {
+        const payload = (await response.json()) as { users?: StudentAccount[] };
+        setStudents(payload.users ?? []);
+      }
       const { data: s } = await supabase
         .from("submissions")
         .select("id, score, feedback, submitted_at, graded_at, assignments(title, class_id, classes(name)), profiles(full_name, username)")
@@ -176,6 +191,24 @@ export default function TeacherDashboard() {
     router.push("/login");
   };
 
+  const handleResetPassword = async (email: string) => {
+    setResettingEmail(email);
+    setResetMessage("");
+    const response = await fetch("/api/management/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const payload = (await response.json()) as { error?: string; ok?: boolean };
+    if (!response.ok) {
+      setResetMessage(payload.error ?? "Gagal mengirim reset password.");
+      setResettingEmail("");
+      return;
+    }
+    setResetMessage(`Link reset password terkirim ke ${email}.`);
+    setResettingEmail("");
+  };
+
   const reportRows = useMemo(() => {
     return submissions.filter((submission) => {
       if (!reportClassId) return true;
@@ -270,10 +303,10 @@ export default function TeacherDashboard() {
 
         {/* Tabs */}
         <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
-          {(["courses", "assignments", "reports"] as const).map((t) => (
+          {(["courses", "assignments", "students", "reports"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-6 py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${tab === t ? "bg-[#FF2D2D] text-white" : "bg-white/5 text-white/50 hover:text-white"}`}>
-              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : "Analisis & Laporan"}
+              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Reset Murid" : "Analisis & Laporan"}
             </button>
           ))}
         </div>
@@ -344,6 +377,48 @@ export default function TeacherDashboard() {
                         <Trash2 className="w-3.5 h-3.5" /> Delete
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "students" && (
+          <div className="space-y-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Reset Password Murid</h2>
+                <p className="text-white/40 text-sm mt-2">Kirim link reset password ke murid yang kamu handle.</p>
+              </div>
+              <div className="text-white/40 text-sm">{students.length} akun</div>
+            </div>
+
+            {resetMessage && (
+              <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{resetMessage}</div>
+            )}
+
+            {students.length === 0 ? (
+              <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
+                <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Belum ada akun murid yang tersedia.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {students.map((student) => (
+                  <div key={student.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-bold text-white">{student.full_name ?? student.username ?? "Tanpa Nama"}</p>
+                      <p className="text-white/40 text-xs font-mono">{student.email ?? "-"} · {student.class_name ?? "Tanpa Kelas"}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleResetPassword(student.email ?? "")}
+                      disabled={!student.email || resettingEmail === student.email}
+                      className="px-4 py-2 bg-[#FF2D2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                    >
+                      {resettingEmail === student.email ? "Sending..." : "Reset Password"}
+                    </button>
                   </div>
                 ))}
               </div>

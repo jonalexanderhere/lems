@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
+import { ProfileStudio } from "@/components/ProfileStudio";
 import Link from "next/link";
 import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera, Award } from "lucide-react";
 import { TerminalLab } from "@/components/TerminalLab";
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
   // Fetch profile with class info
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*, classes(name, grade, section)")
+    .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(name, grade, section)")
     .eq("id", user.id)
     .single();
 
@@ -70,7 +71,7 @@ export default async function DashboardPage() {
             </h1>
             {profile?.classes && (
               <p className="text-white/50 mt-2 text-lg font-mono">
-                {(profile.classes as unknown as { name: string }).name} · {new Date().getFullYear()}
+                {(profile.classes as unknown as { name: string }).name} - {new Date().getFullYear()}
               </p>
             )}
           </div>
@@ -92,13 +93,25 @@ export default async function DashboardPage() {
 
       <div className="container mx-auto px-6 md:px-12 py-12 space-y-12">
 
+        {profile && (
+          <ProfileStudio
+            userId={profile.id}
+            fullName={profile.full_name}
+            username={profile.username}
+            avatarUrl={profile.avatar_url}
+            xp={profile.xp ?? 0}
+            badges={Array.isArray(profile.badges) ? profile.badges : []}
+            role={profile.role}
+          />
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: Zap, label: "Poin XP", value: (profile?.xp ?? 0).toLocaleString() },
             { icon: BookOpen, label: "Kursus Tersedia", value: courses?.length ?? 0 },
             { icon: ClipboardList, label: "Tugas Pending", value: pendingAssignments.length },
-            { icon: Trophy, label: "Peringkat", value: "#—" },
+            { icon: Trophy, label: "Peringkat", value: "#" },
           ].map((stat) => (
             <div key={stat.label} className="p-6 bg-white/5 border border-white/10">
               <stat.icon className="w-6 h-6 text-[#FF2D2D] mb-3" />
@@ -170,7 +183,7 @@ export default async function DashboardPage() {
                   className="p-6 bg-white/5 border border-white/10 hover:border-[#FF2D2D]/40 transition-colors group">
                   <span className="text-xs font-bold uppercase tracking-widest text-[#FF2D2D]">{course.category ?? "Umum"}</span>
                   <h3 className="text-lg font-bold text-white mt-2 mb-1 group-hover:text-[#FF2D2D] transition-colors">{course.title}</h3>
-                  <p className="text-white/40 text-sm">{course.level} · {course.duration_hours} jam</p>
+                  <p className="text-white/40 text-sm">{course.level} - {course.duration_hours} jam</p>
                 </Link>
               ))}
             </div>

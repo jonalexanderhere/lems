@@ -1,57 +1,57 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { ArrowRight, Clock, Users, Zap } from "lucide-react";
+import { ArrowRight, Clock, Layers3, ShieldCheck, Server } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
   title: "Learning Paths | Netvora Academy",
-  description: "Structured learning paths to master networking and cybersecurity.",
+  description: "Basic learning paths to help students master the fundamentals first.",
 };
 
 const paths = [
   {
-    id: "network-engineer",
-    title: "Network Engineer",
-    subtitle: "From zero to CCNA-ready",
-    courses: 6,
-    duration: "80 Hours",
-    level: "Beginner → Advanced",
-    color: "from-blue-900/40 to-transparent",
+    id: "network-fundamentals",
+    title: "Network Fundamentals",
+    subtitle: "IP, switch, router, and traffic basics",
+    modules: 6,
+    duration: "24 Hours",
+    level: "Foundation",
+    accent: "text-blue-300",
     border: "border-blue-500/30",
-    accent: "text-blue-400",
+    glow: "from-blue-500/10",
   },
   {
-    id: "cybersec-analyst",
-    title: "Cybersecurity Analyst",
-    subtitle: "Defend, detect, respond",
-    courses: 7,
-    duration: "96 Hours",
-    level: "Intermediate → Advanced",
-    color: "from-[#FF2D2D]/20 to-transparent",
-    border: "border-[#FF2D2D]/30",
+    id: "security-fundamentals",
+    title: "Security Fundamentals",
+    subtitle: "Threats, access control, and safe practice",
+    modules: 6,
+    duration: "26 Hours",
+    level: "Foundation",
     accent: "text-[#FF2D2D]",
+    border: "border-[#FF2D2D]/30",
+    glow: "from-[#FF2D2D]/10",
   },
   {
-    id: "sysadmin-linux",
-    title: "Linux SysAdmin",
-    subtitle: "Master server infrastructure",
-    courses: 5,
-    duration: "64 Hours",
-    level: "Beginner → Intermediate",
-    color: "from-green-900/30 to-transparent",
-    border: "border-green-500/30",
-    accent: "text-green-400",
+    id: "linux-fundamentals",
+    title: "Linux Fundamentals",
+    subtitle: "Command line, services, files, permissions",
+    modules: 6,
+    duration: "22 Hours",
+    level: "Foundation",
+    accent: "text-emerald-300",
+    border: "border-emerald-500/30",
+    glow: "from-emerald-500/10",
   },
   {
-    id: "cloud-networking",
-    title: "Cloud & DevOps Networking",
-    subtitle: "Scale infrastructure at cloud speed",
-    courses: 8,
-    duration: "110 Hours",
-    level: "Intermediate → Advanced",
-    color: "from-purple-900/30 to-transparent",
-    border: "border-purple-500/30",
-    accent: "text-purple-400",
+    id: "infrastructure-fundamentals",
+    title: "Infrastructure Fundamentals",
+    subtitle: "Backup, monitoring, and server basics",
+    modules: 6,
+    duration: "20 Hours",
+    level: "Foundation",
+    accent: "text-violet-300",
+    border: "border-violet-500/30",
+    glow: "from-violet-500/10",
   },
 ];
 
@@ -59,12 +59,16 @@ export default function PathsPage() {
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
       <Navigation />
+
       <section className="pt-40 pb-16 px-6 md:px-12 border-b border-white/10">
         <div className="container mx-auto">
-          <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.3em] text-sm mb-4">Structured Training</p>
-          <h1 className="font-black uppercase tracking-tighter text-5xl md:text-6xl lg:text-7xl leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
-            Learning Paths
+          <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.3em] text-sm mb-4">Basic Learning Paths</p>
+          <h1 className="font-black uppercase tracking-tighter text-5xl md:text-6xl lg:text-7xl leading-none max-w-3xl" style={{ fontFamily: "var(--font-grotesk)" }}>
+            Mulai dari <span className="text-[#FF2D2D]">dasar</span>, baru naik level.
           </h1>
+          <p className="text-white/50 text-lg max-w-2xl mt-6">
+            Jalur belajar ini sengaja dibuat foundation-first supaya siswa tidak langsung loncat ke materi advance sebelum paham dasar jaringan, keamanan, dan Linux.
+          </p>
         </div>
       </section>
 
@@ -74,26 +78,47 @@ export default function PathsPage() {
             <Link
               key={path.id}
               href={`/paths/${path.id}`}
-              className={`group relative p-8 md:p-12 border ${path.border} bg-gradient-to-br ${path.color} hover:bg-white/5 transition-all duration-300 overflow-hidden`}
+              className={`group relative overflow-hidden border ${path.border} bg-white/5 hover:bg-white/8 transition-all duration-300`}
             >
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h2 className={`text-2xl md:text-4xl font-black uppercase tracking-tighter leading-none mb-2 ${path.accent}`} style={{ fontFamily: "var(--font-grotesk)" }}>
-                    {path.title}
-                  </h2>
-                  <p className="text-white/60 text-lg">{path.subtitle}</p>
+              <div className={`absolute inset-0 bg-gradient-to-br ${path.glow} to-transparent opacity-60`} />
+              <div className="relative p-8 md:p-10 flex flex-col gap-8">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-3">
+                    <span className={`inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.3em] ${path.accent}`}>
+                      <ShieldCheck className="w-4 h-4" />
+                      Foundation Path
+                    </span>
+                    <h2 className={`text-2xl md:text-4xl font-black uppercase tracking-tighter leading-none ${path.accent}`} style={{ fontFamily: "var(--font-grotesk)" }}>
+                      {path.title}
+                    </h2>
+                    <p className="text-white/60 text-lg max-w-md">{path.subtitle}</p>
+                  </div>
+                  <ArrowRight className={`w-8 h-8 ${path.accent} opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all`} />
                 </div>
-                <ArrowRight className={`w-8 h-8 ${path.accent} opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all`} />
-              </div>
-              <div className="flex gap-6 text-sm text-white/50">
-                <span className="flex items-center gap-2"><Users className="w-4 h-4" />{path.courses} Courses</span>
-                <span className="flex items-center gap-2"><Clock className="w-4 h-4" />{path.duration}</span>
-                <span className="flex items-center gap-2"><Zap className="w-4 h-4" />{path.level}</span>
+
+                <div className="grid grid-cols-3 gap-3 text-sm text-white/50">
+                  <div className="p-4 bg-black/20 border border-white/5">
+                    <Layers3 className="w-4 h-4 text-white/40 mb-2" />
+                    <p className="text-white font-bold">{path.modules}</p>
+                    <p className="text-xs uppercase tracking-widest">Modules</p>
+                  </div>
+                  <div className="p-4 bg-black/20 border border-white/5">
+                    <Clock className="w-4 h-4 text-white/40 mb-2" />
+                    <p className="text-white font-bold">{path.duration}</p>
+                    <p className="text-xs uppercase tracking-widest">Duration</p>
+                  </div>
+                  <div className="p-4 bg-black/20 border border-white/5">
+                    <Server className="w-4 h-4 text-white/40 mb-2" />
+                    <p className="text-white font-bold">{path.level}</p>
+                    <p className="text-xs uppercase tracking-widest">Level</p>
+                  </div>
+                </div>
               </div>
             </Link>
           ))}
         </div>
       </section>
+
       <Footer />
     </main>
   );

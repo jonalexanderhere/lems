@@ -62,6 +62,7 @@ create table if not exists profiles (
   class_id uuid references classes(id) on delete set null,
   year_enrolled int,
   avatar_url text,
+  badges jsonb default '[]'::jsonb,
   face_descriptor jsonb,
   face_enrolled_at timestamptz,
   xp int default 0,
@@ -278,3 +279,49 @@ create policy "Students can view their own attendance"
 create policy "Students can create their own attendance"
   on attendance_logs for insert
   with check ( student_id = auth.uid() );
+
+-- =====================
+-- 12. STORAGE BUCKETS
+-- =====================
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do update set public = true;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'Public read avatars'
+  ) then
+    create policy "Public read avatars"
+      on storage.objects for select
+      using (bucket_id = 'avatars');
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'Authenticated upload avatars'
+  ) then
+    create policy "Authenticated upload avatars"
+      on storage.objects for insert
+      to authenticated
+      with check (
+        bucket_id = 'avatars'
+        and auth.uid()::text = (storage.foldername(name))[1]
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname = 'Authenticated update avatars'
+  ) then
+    create policy "Authenticated update avatars"
+      on storage.objects for update
+      to authenticated
+      using (
+        bucket_id = 'avatars'
+        and auth.uid()::text = (storage.foldername(name))[1]
+      );
+  end if;
+end;
+$$;

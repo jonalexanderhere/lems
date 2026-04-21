@@ -15,13 +15,6 @@ const levelColor: Record<string, string> = {
   Advanced: "text-red-400 bg-red-400/10",
 };
 
-const FALLBACK_IMAGES = [
-  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1629654297299-c8506221ca97?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop",
-];
-
 export default async function CoursesPage() {
   const supabase = await createClient();
   const { data: courses } = await supabase
@@ -56,21 +49,26 @@ export default async function CoursesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {courses.map((course, idx) => (
+              {courses.map((course) => (
                 <Link
                   key={course.id}
                   href={`/course/${course.id}`}
                   className="group relative flex flex-col aspect-[3/4] rounded-sm overflow-hidden bg-white/5 border border-white/10 hover:border-[#FF2D2D]/50 transition-colors"
                 >
-                  <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${course.thumbnail_url ?? FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]})` }} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-[#0A0A0A] to-black" />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,45,45,0.18),_transparent_55%)] opacity-80" />
+                  {course.thumbnail_url && (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-40 mix-blend-screen"
+                      style={{ backgroundImage: `url(${course.thumbnail_url})` }}
+                    />
+                  )}
                   <div className="relative h-full flex flex-col justify-end p-6 z-10">
                     <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-sm w-fit mb-3 ${levelColor[course.level ?? ""] ?? "text-white/60 bg-white/10"}`}>
-                      {course.level ?? "—"}
+                      {course.level ?? "Beginner"}
                     </span>
                     <h3 className="text-xl font-bold text-white leading-tight mb-3 group-hover:text-[#FF2D2D] transition-colors">{course.title}</h3>
-                    <div className="flex gap-3 text-white/50 text-xs">
+                    <div className="flex gap-3 text-white/50 text-xs flex-wrap">
                       {course.duration_hours != null && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{course.duration_hours}h</span>}
                       {course.category && <span className="flex items-center gap-1"><BarChart className="w-3 h-3" />{course.category}</span>}
                     </div>

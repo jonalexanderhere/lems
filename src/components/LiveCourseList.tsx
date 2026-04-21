@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Play, Clock, BarChart } from "lucide-react";
+import { BookOpen, Clock, BarChart, Play } from "lucide-react";
 
 type Course = {
   id: string;
@@ -18,13 +18,6 @@ const levelColor: Record<string, string> = {
   Advanced: "text-red-400 bg-red-400/10",
 };
 
-const FALLBACK_IMAGES = [
-  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1629654297299-c8506221ca97?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop",
-];
-
 export function LiveCourseList({ courses }: { courses: Course[] }) {
   if (courses.length === 0) {
     return (
@@ -33,9 +26,10 @@ export function LiveCourseList({ courses }: { courses: Course[] }) {
           <h2 className="text-3xl md:text-5xl font-heading font-bold text-white uppercase tracking-tight mb-12">
             Featured Training
           </h2>
-          <div className="p-16 text-center text-white/30 border border-dashed border-white/10">
-            <p className="text-lg">No courses published yet.</p>
-            <p className="text-sm mt-2">Teachers will add training content soon.</p>
+          <div className="p-16 text-center text-white/30 border border-dashed border-white/10 bg-white/[0.02]">
+            <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p className="text-lg">Belum ada materi yang dipublikasikan.</p>
+            <p className="text-sm mt-2">Guru akan mengisi kursus asli dari dashboard.</p>
           </div>
         </div>
       </section>
@@ -55,19 +49,22 @@ export function LiveCourseList({ courses }: { courses: Course[] }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {courses.map((course, idx) => (
+          {courses.map((course) => (
             <Link
               key={course.id}
               href={`/course/${course.id}`}
               className="group relative flex flex-col aspect-[3/4] rounded-sm overflow-hidden bg-white/5 border border-white/10 cursor-pointer"
             >
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                style={{ backgroundImage: `url(${course.thumbnail_url ?? FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length]})` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent opacity-90 group-hover:opacity-75 transition-opacity duration-500" />
-              <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 mix-blend-overlay transition-opacity duration-500" />
-
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-[#0A0A0A] to-black" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,45,45,0.18),_transparent_55%)] opacity-80" />
+              <div className="absolute inset-0 opacity-40 bg-[linear-gradient(135deg,rgba(255,255,255,0.06)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.06)_50%,rgba(255,255,255,0.06)_75%,transparent_75%,transparent)] bg-[length:18px_18px]" />
+              {course.thumbnail_url && (
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-40 mix-blend-screen"
+                  style={{ backgroundImage: `url(${course.thumbnail_url})` }}
+                />
+              )}
+              
               <div className="relative h-full flex flex-col justify-end p-6 z-10">
                 <div className="translate-y-8 group-hover:translate-y-0 transition-transform duration-500 ease-out">
                   <div className="flex gap-2 mb-3 flex-wrap">

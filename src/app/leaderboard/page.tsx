@@ -1,7 +1,8 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
-import { Trophy, Hexagon } from "lucide-react";
+import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
+import { badgeToneClass, deriveBadges } from "@/utils/badges";
 
 export const metadata = {
   title: "Leaderboard | Netvora Academy",
@@ -12,7 +13,7 @@ export default async function LeaderboardPage() {
   const supabase = await createClient();
   const { data: leaders } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp, classes(name)")
+    .select("id, username, full_name, xp, avatar_url, badges, classes(name)")
     .eq("role", "student")
     .order("xp", { ascending: false })
     .limit(20);
@@ -25,7 +26,7 @@ export default async function LeaderboardPage() {
         <div className="absolute top-0 left-0 w-full h-full bg-accent/5 blur-[120px] rounded-full -translate-y-1/2" />
         <div className="container mx-auto flex flex-col md:flex-row items-center md:items-end justify-between gap-8 relative z-10">
           <div className="flex flex-col items-center md:items-start gap-6">
-            <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center animate-pulse">
+            <div className="w-24 h-24 bg-accent/10 border border-accent/20 rounded-full flex items-center justify-center">
               <Trophy className="w-12 h-12 text-[#FF2D2D]" />
             </div>
             <div>
@@ -46,9 +47,9 @@ export default async function LeaderboardPage() {
       </section>
 
       <section className="py-16 px-6 md:px-12">
-        <div className="container mx-auto max-w-4xl">
+        <div className="container mx-auto max-w-5xl">
           {!leaders || leaders.length === 0 ? (
-            <div className="text-center text-white/30 border border-dashed border-white/10 p-24">
+            <div className="text-center text-white/30 border border-dashed border-white/10 p-24 bg-white/[0.02]">
               <Trophy className="w-16 h-16 mx-auto mb-6 opacity-20" />
               <p className="text-xl font-bold mb-2">Leaderboard Kosong</p>
               <p className="text-sm">Daftar dan mulai belajar untuk masuk leaderboard!</p>
@@ -57,25 +58,48 @@ export default async function LeaderboardPage() {
             <div className="space-y-3">
               {leaders.map((user, i) => {
                 const rank = i + 1;
+                const badges = deriveBadges({ xp: user.xp, badges: Array.isArray(user.badges) ? user.badges : [] });
+                const displayName = user.username ?? user.full_name ?? "Anonymous";
+                const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
+                const classEntry = Array.isArray(user.classes) ? user.classes[0] ?? null : user.classes;
+
                 return (
                   <div key={user.id}
-                    className={`flex items-center justify-between p-5 md:p-6 border transition-colors ${
-                      rank === 1 ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/30 shadow-[0_0_30px_rgba(255,45,45,0.1)]"
-                        : rank <= 3 ? "bg-white/5 border-white/10"
+                    className={`relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 md:p-6 border transition-all ${
+                      rank === 1 ? "bg-gradient-to-r from-yellow-500/20 via-[#FF2D2D]/15 to-yellow-500/20 border-yellow-400/30 shadow-[0_0_40px_rgba(255,215,0,0.12)]"
+                        : rank === 2 ? "bg-gradient-to-r from-slate-300/10 via-white/5 to-slate-300/10 border-slate-300/20"
+                        : rank === 3 ? "bg-gradient-to-r from-orange-500/10 via-white/5 to-orange-500/10 border-orange-400/20"
                         : "bg-white/[0.02] border-white/5 hover:bg-white/5"
                     }`}>
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 flex items-center justify-center relative shrink-0">
-                        <Hexagon className={`w-full h-full absolute ${rank === 1 ? "text-[#FF2D2D] fill-[#FF2D2D]/20" : rank <= 3 ? "text-white/30" : "text-white/10"}`} />
-                        <span className={`font-black text-base relative z-10 ${rank === 1 ? "text-[#FF2D2D]" : "text-white"}`}>{rank}</span>
+                    {rank === 1 && <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,215,0,0.12),_transparent_35%)]" />}
+                    <div className="relative flex items-center gap-5">
+                      <div className="relative w-14 h-14 shrink-0">
+                        <Hexagon className={`w-full h-full absolute ${rank === 1 ? "text-yellow-300 fill-yellow-300/15" : rank === 2 ? "text-slate-200/70 fill-slate-200/10" : rank === 3 ? "text-orange-300 fill-orange-300/10" : "text-white/10"}`} />
+                        <div className="absolute inset-1 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center">
+                          {user.avatar_url ? (
+                            <img src={user.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className={`font-black text-lg ${rank === 1 ? "text-yellow-200" : "text-white"}`}>{initials}</span>
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <p className="font-mono text-lg font-bold text-white">{user.username ?? user.full_name ?? "Anonymous"}</p>
-                        <p className="text-white/40 text-sm">{(user.classes as unknown as { name: string } | null)?.name ?? "—"}</p>
+                        <p className={`font-black text-xl md:text-2xl tracking-tight ${rank === 1 ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-yellow-300" : rank === 2 ? "text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-white to-slate-300" : rank === 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-300" : "text-white"}`}>
+                          {displayName}
+                        </p>
+                        <p className="text-white/40 text-sm">{classEntry?.name ?? "-"}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {badges.map((badge) => (
+                            <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
+                              <BadgeCheck className="w-3 h-3" />
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-black text-2xl md:text-3xl text-white">{user.xp.toLocaleString()}</p>
+                    <div className="relative text-right">
+                      <p className="font-black text-3xl md:text-4xl text-white">{user.xp.toLocaleString()}</p>
                       <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-widest">XP</p>
                     </div>
                   </div>

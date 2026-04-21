@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Lock, Trophy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { jsPDF } from "jspdf";
+import { ArrowRight, BadgeCheck, CheckCircle2, Download, Lock, Trophy } from "lucide-react";
 
 type Question = {
   id: string;
@@ -432,8 +434,10 @@ const QUESTIONS: Question[] = [
 const PASS_SCORE = 80;
 
 export function CertificationQuiz() {
+  const supabase = useMemo(() => createClient(), []);
   const [answers, setAnswers] = useState<Record<string, number | null>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [badgeSaved, setBadgeSaved] = useState(false);
 
   const score = useMemo(() => {
     return QUESTIONS.reduce((total, question) => {
@@ -443,6 +447,106 @@ export function CertificationQuiz() {
 
   const answeredCount = useMemo(() => Object.values(answers).filter((value) => value !== null && value !== undefined).length, [answers]);
   const passed = submitted && score >= PASS_SCORE;
+  const issueDate = useMemo(() => new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric" }).format(new Date()), []);
+
+  useEffect(() => {
+    const persistBadge = async () => {
+      if (!passed || badgeSaved) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("badges, full_name, username")
+        .eq("id", user.id)
+        .single();
+
+      const currentBadges = Array.isArray(profile?.badges) ? profile.badges : [];
+      if (currentBadges.includes("cert:NV-NET-001")) {
+        setBadgeSaved(true);
+        return;
+      }
+
+      const nextBadges = [...currentBadges, "cert:NV-NET-001"];
+      const { error } = await supabase.from("profiles").update({ badges: nextBadges }).eq("id", user.id);
+      if (!error) {
+        setBadgeSaved(true);
+      }
+    };
+
+    persistBadge();
+  }, [badgeSaved, passed, supabase]);
+
+  const downloadCertificate = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, username")
+      .eq("id", user.id)
+      .single();
+
+    const displayName = profile?.full_name?.trim() || profile?.username?.trim() || "Netvora Learner";
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const width = doc.internal.pageSize.getWidth();
+    const height = doc.internal.pageSize.getHeight();
+
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, width, height, "F");
+    doc.setDrawColor(255, 45, 45);
+    doc.setLineWidth(3);
+    doc.rect(24, 24, width - 48, height - 48);
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(1);
+    doc.rect(40, 40, width - 80, height - 80);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("NETVORA ACADEMY", width / 2, 92, { align: "center" });
+
+    doc.setTextColor(255, 45, 45);
+    doc.setFontSize(38);
+    doc.text("CERTIFICATE", width / 2, 156, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "normal");
+    doc.text("This certifies that", width / 2, 202, { align: "center" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(30);
+    doc.text(displayName, width / 2, 245, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(14);
+    doc.text("has successfully passed the foundational certification exam", width / 2, 285, { align: "center" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Certified Network Engineer", width / 2, 330, { align: "center" });
+
+    doc.setFillColor(255, 45, 45);
+    doc.roundedRect(width / 2 - 148, 356, 296, 34, 10, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text(`Score ${score}/100 | Badge Earned`, width / 2, 378, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.text(`Badge ID: cert:NV-NET-001`, 70, height - 100);
+    doc.text(`Verification ID: NV-NET-001`, 70, height - 80);
+    doc.text(`Issued: ${issueDate}`, width - 70, height - 100, { align: "right" });
+    doc.text("Verified by Netvora Academy Certification Board", width - 70, height - 80, { align: "right" });
+
+    doc.setDrawColor(255, 45, 45);
+    doc.setLineWidth(2);
+    doc.line(70, height - 64, 180, height - 64);
+    doc.line(width - 180, height - 64, width - 70, height - 64);
+
+    doc.save(`Netvora-Certificate-${displayName.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  };
 
   return (
     <section className="py-16 px-6 md:px-12 border-t border-white/5">
@@ -521,6 +625,22 @@ export function CertificationQuiz() {
                 ? "Kamu sudah melewati ambang kelulusan. Sertifikat dan status kelulusan bisa dipakai sebagai bukti capaian."
                 : "Kamu perlu minimal 80 poin untuk membuka sertifikat. Coba lagi setelah meninjau jawaban."}
             </p>
+            {passed && (
+              <div className="mt-5 flex flex-col md:flex-row md:items-center gap-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2 border border-yellow-400/30 bg-yellow-400/10 text-yellow-200 text-xs font-bold uppercase tracking-widest">
+                  <BadgeCheck className="w-4 h-4" />
+                  Badge unlocked
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadCertificate}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white text-black font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Certificate
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

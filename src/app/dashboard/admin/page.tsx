@@ -8,6 +8,17 @@ import { useRouter } from "next/navigation";
 
 type Profile = { id: string; full_name: string; username: string; role: string; xp: number; classes: { name: string } | null };
 type ClassData = { id: string; name: string; grade: string; section: string; count?: number };
+type StudentAccount = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  username: string | null;
+  role: string;
+  xp: number;
+  avatar_url: string | null;
+  badges: string[];
+  class_name: string | null;
+};
 
 const GRADE_ORDER = ["X", "XI", "XII", "Alumni"];
 const GRADE_NEXT: Record<string, string> = { X: "XI", XI: "XII", XII: "Alumni" };
@@ -20,12 +31,15 @@ export default function AdminDashboard() {
   const [profile, setProfile] = useState<{ full_name: string } | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
-  const [tab, setTab] = useState<"users" | "classes" | "promote" | "logs" | "traffic">("users");
+  const [students, setStudents] = useState<StudentAccount[]>([]);
+  const [tab, setTab] = useState<"users" | "classes" | "promote" | "logs" | "students">("users");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [promoting, setPromoting] = useState(false);
   const [promoteResult, setPromoteResult] = useState("");
   const [newYear, setNewYear] = useState("");
   const [updatingRole, setUpdatingRole] = useState("");
+  const [resettingEmail, setResettingEmail] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
 
   const fetchLogs = useCallback(async () => {
     const { data } = await supabase
@@ -54,6 +68,16 @@ export default function AdminDashboard() {
     setClasses(cls.map((c) => ({ ...c, count: countMap[c.id] ?? 0 })));
   }, [supabase]);
 
+  const fetchStudents = useCallback(async () => {
+    const response = await fetch("/api/management/users");
+    if (!response.ok) {
+      setStudents([]);
+      return;
+    }
+    const payload = (await response.json()) as { users?: StudentAccount[] };
+    setStudents(payload.users ?? []);
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -64,9 +88,10 @@ export default function AdminDashboard() {
       fetchUsers();
       fetchClasses();
       fetchLogs();
+      fetchStudents();
     };
     init();
-  }, [fetchClasses, fetchLogs, fetchUsers, router, supabase]);
+  }, [fetchClasses, fetchLogs, fetchStudents, fetchUsers, router, supabase]);
 
   const updateRole = async (userId: string, newRole: string) => {
     setUpdatingRole(userId);
@@ -121,6 +146,24 @@ export default function AdminDashboard() {
     router.push("/login");
   };
 
+  const handleResetPassword = async (email: string) => {
+    setResettingEmail(email);
+    setResetMessage("");
+    const response = await fetch("/api/management/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const payload = (await response.json()) as { error?: string; ok?: boolean };
+    if (!response.ok) {
+      setResetMessage(payload.error ?? "Gagal mengirim reset password.");
+      setResettingEmail("");
+      return;
+    }
+    setResetMessage(`Link reset password terkirim ke ${email}.`);
+    setResettingEmail("");
+  };
+
   const roleBadge: Record<string, string> = {
     admin: "bg-[#FF2D2D]/20 text-[#FF2D2D]",
     teacher: "bg-blue-500/20 text-blue-400",
@@ -145,11 +188,11 @@ export default function AdminDashboard() {
         </div>
 
         <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
-          {([
+            {([
             { key: "users", label: "Pengguna", icon: Users },
             { key: "classes", label: "Kelas", icon: GraduationCap },
             { key: "logs", label: "Log Aktivitas", icon: ShieldCheck },
-            { key: "traffic", label: "Trafik", icon: TrendingUp },
+            { key: "students", label: "Reset Murid", icon: Users },
             { key: "promote", label: "Kenaikan Kelas", icon: GraduationCap },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)}
@@ -254,31 +297,51 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TRAFFIC */}
-        {tab === "traffic" && (
+        {/* STUDENTS */}
+        {tab === "students" && (
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight mb-6" style={{ fontFamily: "var(--font-grotesk)" }}>Analitik Trafik Website</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="p-8 bg-white/5 border border-white/10">
-                <p className="text-white/40 text-xs uppercase tracking-widest mb-1">Total Hits (24j)</p>
-                <p className="text-4xl font-black text-white">1,284</p>
-                <p className="text-green-400 text-xs mt-2">+12% dari kemarin</p>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Reset Password Murid</h2>
+                <p className="text-white/40 text-sm mt-2">Kirim link reset ke akun siswa yang sudah login atau lupa password.</p>
               </div>
-              <div className="p-8 bg-white/5 border border-white/10">
-                <p className="text-white/40 text-xs uppercase tracking-widest mb-1">Unique Visitors</p>
-                <p className="text-4xl font-black text-white">432</p>
-                <p className="text-green-400 text-xs mt-2">+5% dari kemarin</p>
-              </div>
-              <div className="p-8 bg-white/5 border border-white/10">
-                <p className="text-white/40 text-xs uppercase tracking-widest mb-1">Laju Bounce</p>
-                <p className="text-4xl font-black text-white">24%</p>
-                <p className="text-accent text-xs mt-2">-2% (Lebih baik)</p>
-              </div>
+              <div className="text-white/40 text-sm">{students.length} akun ditemukan</div>
             </div>
-            <div className="p-12 bg-white/5 border border-white/10 text-center border-dashed">
-              <TrendingUp className="w-12 h-12 mx-auto mb-4 text-accent opacity-30" />
-              <p className="text-white/40">Grafik trafik real-time sedang diproses...</p>
-            </div>
+
+            {resetMessage && (
+              <div className="mb-6 p-4 bg-white/5 border border-white/10 text-sm text-white/70">
+                {resetMessage}
+              </div>
+            )}
+
+            {students.length === 0 ? (
+              <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
+                <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Belum ada akun murid yang bisa di-reset.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {students.map((student) => (
+                  <div key={student.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-bold text-white">{student.full_name ?? student.username ?? "Tanpa Nama"}</p>
+                      <p className="text-white/40 text-xs font-mono">{student.email ?? "-"} · {student.class_name ?? "Tanpa Kelas"}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold uppercase tracking-widest px-3 py-1 bg-white/10 text-white/60">Student</span>
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(student.email ?? "")}
+                        disabled={!student.email || resettingEmail === student.email}
+                        className="px-4 py-2 bg-[#FF2D2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                      >
+                        {resettingEmail === student.email ? "Sending..." : "Reset Password"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
