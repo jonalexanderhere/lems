@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import Link from "next/link";
 
 export const metadata = {
   title: "Leaderboard | Netvora Academy",
@@ -64,7 +65,7 @@ export default async function LeaderboardPage() {
                 const classEntry = Array.isArray(user.classes) ? user.classes[0] ?? null : user.classes;
 
                 return (
-                  <div key={user.id}
+                  <Link key={user.id} href={`/profile/${user.id}`}
                     className={`relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 md:p-6 border transition-all ${
                       rank === 1 ? "bg-gradient-to-r from-yellow-500/20 via-[#FF2D2D]/15 to-yellow-500/20 border-yellow-400/30 shadow-[0_0_40px_rgba(255,215,0,0.12)]"
                         : rank === 2 ? "bg-gradient-to-r from-slate-300/10 via-white/5 to-slate-300/10 border-slate-300/20"
@@ -84,7 +85,7 @@ export default async function LeaderboardPage() {
                         </div>
                       </div>
                       <div>
-                        <p className={`font-black text-xl md:text-2xl tracking-tight ${rank === 1 ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-yellow-300" : rank === 2 ? "text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-white to-slate-300" : rank === 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-300" : "text-white"}`}>
+                        <p className={`font-black text-xl md:text-2xl tracking-tight ${rank === 1 ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-yellow-300" : rank === 2 ? "text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-white to-slate-300" : rank === 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-300" : "text-white group-hover:text-[#FF2D2D] transition-colors"}`}>
                           {displayName}
                         </p>
                         <p className="text-white/40 text-sm">{classEntry?.name ?? "-"}</p>
@@ -102,7 +103,7 @@ export default async function LeaderboardPage() {
                       <p className="font-black text-3xl md:text-4xl text-white">{user.xp.toLocaleString()}</p>
                       <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-widest">XP</p>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

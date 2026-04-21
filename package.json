@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "@openrouter/sdk": "^0.12.17",
+    "@openrouter/sdk": "^0.12.18",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.0",
     "@tensorflow/tfjs": "^4.22.0",

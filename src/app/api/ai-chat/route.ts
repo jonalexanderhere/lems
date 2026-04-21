@@ -75,43 +75,7 @@ Respond in a clear, concise, practical way. Use code blocks (\`\`\`) for configs
 Always respond in the same language as the user (Indonesian or English).
 If asked something outside your scope, redirect to your specialization.`;
 
-// Priority list: free models first, paid as fallback
-const MODEL_LIST = [
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
-  "google/gemma-3-4b-it:free",
-  "openai/gpt-4o-mini",
-];
-
-async function tryOpenRouter(
-  apiKey: string,
-  model: string,
-  messages: LocalChatMessage[]
-): Promise<Response | null> {
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://netvora.academy",
-        "X-Title": "Netvora Academy",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-        stream: true,
-        max_tokens: 1200,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!res.ok || !res.body) return null;
-    return res;
-  } catch {
-    return null;
-  }
-}
+import { OpenRouter } from "@openrouter/sdk";
 
 export async function POST(req: NextRequest) {
   // --- Parse messages ---
@@ -135,15 +99,64 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // --- Try each model in order ---
-  let successResponse: Response | null = null;
-  for (const model of MODEL_LIST) {
-    successResponse = await tryOpenRouter(apiKey, model, messages);
-    if (successResponse) break;
-  }
+  try {
+    const openrouter = new OpenRouter({ apiKey });
 
-  // --- If all models fail, use smart local fallback ---
-  if (!successResponse) {
+    // Stream the response to get reasoning tokens in usage
+    const stream = await openrouter.chat.send({
+      chatRequest: {
+        model: "openai/gpt-oss-120b:free",
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        stream: true
+      }
+    });
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices?.[0]?.delta?.content;
+            if (content) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+                )
+              );
+            }
+
+            // Usage information comes in the final chunk
+            const usage = chunk.usage as any;
+            if (usage && usage.reasoningTokens) {
+              console.log("[AI Tutor] Reasoning tokens:", usage.reasoningTokens);
+            }
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch (err) {
+          console.error("Stream error", err);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ delta: { content: "\n\n[Koneksi terputus]" } }] })}\n\n`
+            )
+          );
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+
+  } catch (err) {
+    console.error("OpenRouter Error:", err);
+    // fallback
     const lastMsg = [...messages]
       .reverse()
       .find((m) => m.role === "user")
@@ -152,68 +165,6 @@ export async function POST(req: NextRequest) {
     let localAnswer = buildLocalAnswer(lastMsg);
     return createStreamingTextResponse(localAnswer);
   }
-
-  // --- Stream response back to client ---
-  const { readable, writable } = new TransformStream();
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  const writer = writable.getWriter();
-  const reader = successResponse.body!.getReader();
-
-  (async () => {
-    try {
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") {
-              await writer.write(encoder.encode("data: [DONE]\n\n"));
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content !== undefined) {
-                await writer.write(
-                  encoder.encode(
-                    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-                  )
-                );
-              }
-            } catch {
-              // skip malformed chunk
-            }
-          }
-        }
-      }
-      await writer.write(encoder.encode("data: [DONE]\n\n"));
-    } catch {
-      await writer.write(
-        encoder.encode(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: "\n\n[Koneksi terputus]" } }] })}\n\n`
-        )
-      );
-    } finally {
-      await writer.close().catch(() => {});
-    }
-  })();
-
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  });
 }
 
 // =====================================================

@@ -70,24 +70,20 @@ export default function AssignmentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) { setError("Please select a file to submit."); return; }
+    if (!file) { setError("Please masukkan link tugas."); return; }
     setUploading(true);
     setError("");
 
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("submissions").upload(path, file, { upsert: true });
-    if (upErr) { setError("Upload failed: " + upErr.message); setUploading(false); return; }
-
-    const { data: urlData } = supabase.storage.from("submissions").getPublicUrl(path);
+    // The 'file' object is a mock file containing the URL as its name
+    const submittedUrl = file.name;
 
     const { data, error: dbErr } = await supabase.from("submissions").upsert({
       assignment_id: id,
       student_id: userId,
-      file_url: urlData.publicUrl,
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size,
+      file_url: submittedUrl,
+      file_name: submittedUrl,
+      file_type: "link",
+      file_size: 0,
       note: note,
       submitted_at: new Date().toISOString(),
     }, { onConflict: "assignment_id,student_id" }).select().single();
@@ -218,9 +214,9 @@ export default function AssignmentPage() {
                 <p className="text-white/50 text-sm">{new Date(submission.submitted_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 mb-4">
-              <FileText className="w-5 h-5 text-[#FF2D2D]" />
-              <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="font-mono text-white hover:text-[#FF2D2D] transition-colors text-sm">
+            <div className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 mb-4 overflow-hidden">
+              <FileText className="w-5 h-5 text-[#FF2D2D] shrink-0" />
+              <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="font-mono text-white hover:text-[#FF2D2D] transition-colors text-sm truncate">
                 {submission.file_name}
               </a>
             </div>
@@ -232,11 +228,11 @@ export default function AssignmentPage() {
               </div>
             )}
             {submission.score == null && (
-              <p className="text-white/40 text-sm">{grading ? "Penilaian otomatis sedang berjalan..." : "Menunggu penilaian otomatis..."}</p>
+              <p className="text-white/40 text-sm">{grading ? "Penilaian otomatis sedang berjalan..." : "Menunggu penilaian guru / otomatis..."}</p>
             )}
             {/* Allow resubmission */}
             <button onClick={() => setSubmission(null)} className="mt-4 text-xs text-white/30 hover:text-white transition-colors underline">
-              Ganti file submission
+              Ganti link submission
             </button>
           </div>
         ) : (
@@ -246,15 +242,24 @@ export default function AssignmentPage() {
             {error && <div className="p-4 bg-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#FF2D2D] text-sm">{error}</div>}
 
             <div>
-              <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Upload File (PPT, Word, PDF, ZIP, etc.)</label>
-              <label className="flex items-center gap-4 w-full border-2 border-dashed border-white/20 px-6 py-8 cursor-pointer hover:border-[#FF2D2D]/50 transition-colors">
-                <Upload className="w-8 h-8 text-[#FF2D2D] shrink-0" />
-                <div>
-                  <p className="font-bold text-white">{file ? file.name : "Click to select file"}</p>
-                  <p className="text-white/40 text-sm">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "All file types accepted"}</p>
-                </div>
-                <input type="file" className="hidden" accept="*/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              </label>
+              <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Link Tugas (Google Drive / GitHub / URL) *</label>
+              <input 
+                type="url" 
+                required 
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors"
+                placeholder="https://drive.google.com/..."
+                onChange={(e) => {
+                  // Mock a file object for the existing logic since it expects 'file'
+                  const url = e.target.value;
+                  if (url) {
+                    const mockFile = new File(["url-link"], url, { type: "text/uri-list" });
+                    setFile(mockFile);
+                  } else {
+                    setFile(null);
+                  }
+                }} 
+              />
+              <p className="text-white/30 text-xs mt-2">Pastikan link dapat diakses secara publik (contoh: "Anyone with the link").</p>
             </div>
 
             <div>
@@ -266,7 +271,7 @@ export default function AssignmentPage() {
 
             <button type="submit" disabled={uploading || !file}
               className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-              {uploading ? <><Loader2 className="w-5 h-5 animate-spin" /> Uploading...</> : <><Upload className="w-5 h-5" /> Submit Assignment</>}
+              {uploading ? <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</> : <><Upload className="w-5 h-5" /> Submit Link</>}
             </button>
           </form>
         )}

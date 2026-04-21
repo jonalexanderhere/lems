@@ -23,6 +23,8 @@ export default async function CoursesPage() {
     .eq("is_published", true)
     .order("created_at", { ascending: false });
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
       <Navigation />
@@ -43,8 +45,8 @@ export default async function CoursesPage() {
               <BookOpen className="w-16 h-16 mb-6 opacity-30" />
               <p className="text-xl font-bold mb-2">No Courses Yet</p>
               <p className="text-sm">Teachers will publish courses soon. Check back later!</p>
-              <Link href="/login" className="mt-6 px-6 py-3 bg-[#FF2D2D] text-white text-sm font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
-                Login to Dashboard
+              <Link href={user ? "/dashboard" : "/login"} className="mt-6 px-6 py-3 bg-[#FF2D2D] text-white text-sm font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+                {user ? "Buka Dashboard" : "Login to Dashboard"}
               </Link>
             </div>
           ) : (
