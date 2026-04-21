@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
   const { error } = await admin.auth.resetPasswordForEmail(email, {
-    redirectTo: `${new URL(req.url).origin}/login?password_reset=1`,
+    redirectTo: `${new URL(req.url).origin}/auth/callback?next=/reset-password`,
   });
 
   if (error) {
