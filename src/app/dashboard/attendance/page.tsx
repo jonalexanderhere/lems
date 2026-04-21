@@ -8,19 +8,32 @@ import {
   BadgeCheck,
   Camera,
   CheckCircle2,
+  Clock,
   Loader2,
   RefreshCw,
   ScanFace,
   ShieldCheck,
+  User,
   UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
 
 type AttendanceProfile = {
   class_id: string | null;
+  full_name: string | null;
+  username: string | null;
   classes: { id: string; name: string } | null;
   face_descriptor: number[] | null;
   face_enrolled_at: string | null;
+};
+
+type AttendanceRecord = {
+  id: string;
+  student_id: string;
+  created_at: string;
+  status: string;
+  confidence_score: number | null;
+  profiles: { full_name: string | null; username: string | null } | null;
 };
 
 type FaceApiModule = typeof import("face-api.js");
@@ -37,33 +50,50 @@ export default function AttendancePage() {
   const [message, setMessage] = useState("Memuat model AI...");
   const [userId, setUserId] = useState("");
   const [profile, setProfile] = useState<AttendanceProfile | null>(null);
+  const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(true);
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
 
+  const fetchTodayRecords = async () => {
+    setLoadingRecords(true);
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+    const { data } = await supabase
+      .from("attendance_logs")
+      .select("id, student_id, created_at, status, confidence_score, profiles(full_name, username)")
+      .gte("created_at", startOfDay)
+      .lt("created_at", endOfDay)
+      .order("created_at", { ascending: false });
+
+    setTodayRecords((data ?? []) as unknown as AttendanceRecord[]);
+    setLoadingRecords(false);
+  };
+
   useEffect(() => {
     const init = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("class_id, face_descriptor, face_enrolled_at, classes(id, name)")
+        .select("class_id, full_name, username, face_descriptor, face_enrolled_at, classes(id, name)")
         .eq("id", user.id)
         .single();
 
       setProfile((p ?? null) as AttendanceProfile | null);
+      await fetchTodayRecords();
     };
-
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   useEffect(() => {
     let mounted = true;
-
     const loadModels = async () => {
       try {
         const mod = await import("face-api.js");
@@ -83,40 +113,26 @@ export default function AttendancePage() {
         setMessage("Model AI gagal dimuat. Pastikan folder /public/models tersedia.");
       }
     };
-
     loadModels();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-    };
+    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, []);
 
   const stopCamera = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
   };
 
   const startCamera = async () => {
-    if (!modelsReady) {
-      setStatus("loading-models");
-      setMessage("Model AI masih dimuat...");
-      return;
-    }
-
+    if (!modelsReady) { setStatus("loading-models"); setMessage("Model AI masih dimuat..."); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       setStatus("capturing");
       setMessage(hasEnrollment ? "Kamera aktif. Klik verifikasi absensi." : "Kamera aktif. Klik daftarkan wajah.");
     } catch {
@@ -126,34 +142,20 @@ export default function AttendancePage() {
   };
 
   const clearOverlay = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx && canvasRef.current) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
 
   const detectFace = async () => {
     if (!faceApi || !videoRef.current) return null;
-
     const detection = await faceApi
-      .detectSingleFace(
-        videoRef.current,
-        new faceApi.TinyFaceDetectorOptions({
-          inputSize: 416,
-          scoreThreshold: 0.5,
-        })
-      )
+      .detectSingleFace(videoRef.current, new faceApi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor();
-
     if (!detection) return null;
-
     const canvas = canvasRef.current;
     if (canvas && videoRef.current.videoWidth && videoRef.current.videoHeight) {
-      const dims = {
-        width: videoRef.current.videoWidth,
-        height: videoRef.current.videoHeight,
-      };
+      const dims = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
       canvas.width = dims.width;
       canvas.height = dims.height;
       faceApi.matchDimensions(canvas, dims);
@@ -165,50 +167,21 @@ export default function AttendancePage() {
         faceApi.draw.drawFaceLandmarks(canvas, resized);
       }
     }
-
     return detection.descriptor;
   };
 
   const enrollFace = async () => {
     if (!faceApi || !userId) return;
-    if (status === "loading-models") return;
     if (status !== "capturing") await startCamera();
     if (!streamRef.current) return;
-
     setStatus("enrolling");
     setMessage("Mendeteksi wajah untuk pendaftaran...");
-
     const descriptor = await detectFace();
-    if (!descriptor) {
-      setStatus("error");
-      setMessage("Tidak ada wajah terdeteksi. Posisikan wajah lebih dekat ke kamera.");
-      return;
-    }
-
+    if (!descriptor) { setStatus("error"); setMessage("Tidak ada wajah terdeteksi. Posisikan wajah lebih dekat ke kamera."); return; }
     const savedDescriptor = Array.from(descriptor);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        face_descriptor: savedDescriptor,
-        face_enrolled_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
-
-    if (error) {
-      setStatus("error");
-      setMessage("Gagal menyimpan profil wajah: " + error.message);
-      return;
-    }
-
-    setProfile((prev) =>
-      prev
-        ? {
-            ...prev,
-            face_descriptor: savedDescriptor,
-            face_enrolled_at: new Date().toISOString(),
-          }
-        : prev
-    );
+    const { error } = await supabase.from("profiles").update({ face_descriptor: savedDescriptor, face_enrolled_at: new Date().toISOString() }).eq("id", userId);
+    if (error) { setStatus("error"); setMessage("Gagal menyimpan profil wajah: " + error.message); return; }
+    setProfile((prev) => prev ? { ...prev, face_descriptor: savedDescriptor, face_enrolled_at: new Date().toISOString() } : prev);
     setStatus("success");
     setMessage("Wajah berhasil didaftarkan. Absensi berikutnya akan otomatis cocok.");
     clearOverlay();
@@ -219,25 +192,13 @@ export default function AttendancePage() {
     if (!faceApi || !userId || !enrolledDescriptor) return;
     if (status !== "capturing") await startCamera();
     if (!streamRef.current) return;
-
     setStatus("scanning");
     setMessage("Mencocokkan wajah dengan model AI...");
-
     const descriptor = await detectFace();
-    if (!descriptor) {
-      setStatus("error");
-      setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik.");
-      return;
-    }
-
+    if (!descriptor) { setStatus("error"); setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik."); return; }
     const distance = faceApi.euclideanDistance(enrolledDescriptor, descriptor);
     const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
-
-    if (distance > 0.55) {
-      setStatus("error");
-      setMessage(`Wajah tidak cocok. Jarak descriptor: ${distance.toFixed(3)}`);
-      return;
-    }
+    if (distance > 0.55) { setStatus("error"); setMessage(`Wajah tidak cocok. Jarak descriptor: ${distance.toFixed(3)}`); return; }
 
     const { error } = await supabase.from("attendance_logs").insert({
       student_id: userId,
@@ -246,17 +207,13 @@ export default function AttendancePage() {
       status: "present",
       confidence_score: confidence,
     });
-
-    if (error) {
-      setStatus("error");
-      setMessage("Gagal menyimpan data absensi: " + error.message);
-      return;
-    }
+    if (error) { setStatus("error"); setMessage("Gagal menyimpan data absensi: " + error.message); return; }
 
     setStatus("success");
-    setMessage(`Absensi otomatis diverifikasi dengan confidence ${(confidence * 100).toFixed(1)}%.`);
+    setMessage(`✓ Absensi berhasil! ${profile?.full_name ?? profile?.username ?? "Kamu"} — ${new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`);
     clearOverlay();
     stopCamera();
+    await fetchTodayRecords();
   };
 
   const isBusy = status === "loading-models" || status === "enrolling" || status === "scanning";
@@ -266,142 +223,183 @@ export default function AttendancePage() {
       <Navigation />
 
       <section className="pt-32 pb-12 px-6 md:px-12">
-        <div className="container mx-auto max-w-3xl text-center">
-          <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.35em] text-sm mb-4">AI Face Attendance</p>
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
-            Absensi <span className="text-accent">Wajah</span>
-          </h1>
-          <p className="text-white/50 mb-10">
-            Daftarkan wajah sekali, lalu sistem AI akan mencocokkan absensi secara otomatis.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="p-4 bg-white/5 border border-white/10 text-left">
-              <ScanFace className="w-5 h-5 text-accent mb-2" />
-              <p className="font-bold text-sm mb-1">Model aktif</p>
-              <p className="text-white/40 text-xs">{modelsReady ? "Siap digunakan" : "Memuat model AI"}</p>
-            </div>
-            <div className="p-4 bg-white/5 border border-white/10 text-left">
-              <ShieldCheck className="w-5 h-5 text-accent mb-2" />
-              <p className="font-bold text-sm mb-1">Enrolment</p>
-              <p className="text-white/40 text-xs">{hasEnrollment ? "Sudah terdaftar" : "Belum ada wajah tersimpan"}</p>
-            </div>
-            <div className="p-4 bg-white/5 border border-white/10 text-left">
-              <BadgeCheck className="w-5 h-5 text-accent mb-2" />
-              <p className="font-bold text-sm mb-1">Kelas</p>
-              <p className="text-white/40 text-xs">{profile?.classes?.name ?? "Belum dipetakan"}</p>
-            </div>
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-10">
+            <p className="text-[#FF2D2D] font-mono uppercase tracking-[0.35em] text-sm mb-4">AI Face Attendance</p>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter mb-4" style={{ fontFamily: "var(--font-grotesk)" }}>
+              Absensi <span className="text-accent">Wajah</span>
+            </h1>
+            <p className="text-white/50">
+              Daftarkan wajah sekali, lalu sistem AI akan mencocokkan absensi secara otomatis.
+            </p>
           </div>
 
-          <div className="relative aspect-video bg-white/5 border border-white/10 rounded-sm overflow-hidden mb-8">
-            {status === "loading-models" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-accent" />
-                <p className="text-white/50">Memuat model AI...</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* LEFT — Camera */}
+            <div>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="p-3 bg-white/5 border border-white/10 text-center">
+                  <ScanFace className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Model AI</p>
+                  <p className="text-white/40 text-xs">{modelsReady ? "Siap" : "Memuat..."}</p>
+                </div>
+                <div className="p-3 bg-white/5 border border-white/10 text-center">
+                  <ShieldCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Wajah</p>
+                  <p className="text-white/40 text-xs">{hasEnrollment ? "Terdaftar ✓" : "Belum ada"}</p>
+                </div>
+                <div className="p-3 bg-white/5 border border-white/10 text-center">
+                  <BadgeCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Kelas</p>
+                  <p className="text-white/40 text-xs truncate">{profile?.classes?.name ?? "—"}</p>
+                </div>
               </div>
-            )}
 
-            {status !== "success" && (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${status === "loading-models" ? "opacity-0" : "opacity-100"}`}
-              />
-            )}
-
-            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-
-            {(status === "capturing" || status === "scanning" || status === "enrolling") && (
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-80 border-2 border-accent border-dashed opacity-50 rounded-3xl" />
-                {status !== "scanning" && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-88 border border-white/10 opacity-20 rounded-[4rem]" />
+              <div className="relative aspect-video bg-white/5 border border-white/10 rounded-sm overflow-hidden mb-4">
+                {status === "loading-models" && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-accent" />
+                    <p className="text-white/50">Memuat model AI...</p>
+                  </div>
                 )}
-                {status === "scanning" && (
-                  <div className="absolute top-0 left-0 w-full h-1 bg-accent/50 shadow-[0_0_15px_rgba(255,45,45,0.8)] animate-scan" />
+                {status !== "success" && (
+                  <video ref={videoRef} autoPlay playsInline muted
+                    className={`w-full h-full object-cover ${status === "loading-models" ? "opacity-0" : "opacity-100"}`}
+                  />
+                )}
+                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+                {(status === "capturing" || status === "scanning" || status === "enrolling") && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-72 border-2 border-accent border-dashed opacity-60 rounded-3xl" />
+                    {status === "scanning" && (
+                      <div className="absolute top-0 left-0 w-full h-1 bg-accent/50 shadow-[0_0_15px_rgba(255,45,45,0.8)] animate-scan" />
+                    )}
+                  </div>
+                )}
+                {status === "success" && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/10 backdrop-blur-sm">
+                    <CheckCircle2 className="w-16 h-16 text-green-400 mb-3 animate-bounce" />
+                    <p className="text-xl font-black text-white uppercase tracking-tight">Terverifikasi!</p>
+                    <p className="text-green-400 text-sm mt-1 font-mono">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</p>
+                  </div>
                 )}
               </div>
-            )}
 
-            {status === "success" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/10 backdrop-blur-sm">
-                <CheckCircle2 className="w-20 h-20 text-green-400 mb-4 animate-bounce" />
-                <p className="text-2xl font-black text-white uppercase tracking-tight">Terverifikasi</p>
+              {/* Status bar */}
+              <div className={`p-3 border mb-4 flex items-center gap-3 text-sm transition-colors rounded-sm ${
+                status === "error" ? "bg-accent/10 border-accent/30 text-accent" :
+                status === "success" ? "bg-green-500/10 border-green-500/30 text-green-400" :
+                "bg-white/5 border-white/10 text-white/60"
+              }`}>
+                {status === "error" ? <AlertCircle className="w-4 h-4 shrink-0" /> :
+                 status === "loading-models" ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> :
+                 <ShieldCheck className="w-4 h-4 shrink-0" />}
+                <p>{message}</p>
               </div>
-            )}
-          </div>
 
-          <div
-            className={`p-4 rounded-sm border mb-6 flex items-center gap-3 transition-colors ${
-              status === "error"
-                ? "bg-accent/10 border-accent/30 text-accent"
-                : status === "success"
-                  ? "bg-green-500/10 border-green-500/30 text-green-400"
-                  : "bg-white/5 border-white/10 text-white/60"
-            }`}
-          >
-            {status === "error" ? (
-              <AlertCircle className="w-5 h-5 shrink-0" />
-            ) : status === "loading-models" ? (
-              <Loader2 className="w-5 h-5 animate-spin shrink-0" />
-            ) : (
-              <ShieldCheck className="w-5 h-5 shrink-0" />
-            )}
-            <p className="text-sm font-medium">{message}</p>
-          </div>
+              {/* Buttons */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <Camera className="w-4 h-4" /> Kamera
+                </button>
+                <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <UserRoundPlus className="w-4 h-4" /> Daftar
+                </button>
+                <button onClick={verifyAttendance} disabled={isBusy || !hasEnrollment || !modelsReady} className="py-3 bg-accent text-white text-sm font-bold uppercase tracking-wide hover:bg-white hover:text-black transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Absensi
+                </button>
+              </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={startCamera}
-              disabled={isBusy}
-              className="flex-1 py-4 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
-            >
-              Buka Kamera
-            </button>
-            <button
-              onClick={enrollFace}
-              disabled={isBusy || !modelsReady}
-              className="flex-1 flex items-center justify-center gap-3 py-4 bg-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/20 transition-colors disabled:opacity-50"
-            >
-              <UserRoundPlus className="w-5 h-5" />
-              Daftarkan Wajah
-            </button>
-            <button
-              onClick={verifyAttendance}
-              disabled={isBusy || !hasEnrollment || !modelsReady}
-              className="flex-1 flex items-center justify-center gap-3 py-4 bg-accent text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
-            >
-              <Camera className="w-5 h-5" />
-              Verifikasi Absensi
-            </button>
-          </div>
+              <div className="flex items-center justify-between text-xs text-white/30">
+                <button onClick={stopCamera} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                  <RefreshCw className="w-3 h-3" /> Matikan kamera
+                </button>
+                <Link href="/dashboard" className="hover:text-white transition-colors">← Dashboard</Link>
+              </div>
+            </div>
 
-          <div className="mt-6 flex items-center justify-center gap-4 text-sm text-white/40">
-            <button onClick={stopCamera} className="inline-flex items-center gap-2 hover:text-white transition-colors">
-              <RefreshCw className="w-4 h-4" />
-              Matikan kamera
-            </button>
-            <Link href="/dashboard" className="hover:text-white transition-colors">
-              Kembali ke dashboard
-            </Link>
+            {/* RIGHT — Rekap Absensi Hari Ini */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>
+                    Rekap Hari Ini
+                  </h2>
+                  <p className="text-white/40 text-xs mt-0.5">
+                    {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+                <button onClick={fetchTodayRecords} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-sm text-center">
+                  <p className="text-2xl font-black text-green-400">{todayRecords.length}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-widest mt-1">Hadir</p>
+                </div>
+                <div className="p-4 bg-white/5 border border-white/10 rounded-sm text-center">
+                  <p className="text-2xl font-black text-white">
+                    {todayRecords.length > 0
+                      ? new Date(todayRecords[todayRecords.length - 1].created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                      : "—"}
+                  </p>
+                  <p className="text-white/50 text-xs uppercase tracking-widest mt-1">Pertama Masuk</p>
+                </div>
+              </div>
+
+              {/* Attendance list */}
+              <div className="bg-white/5 border border-white/10 rounded-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-accent" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-white/60">Log Absensi</span>
+                </div>
+                {loadingRecords ? (
+                  <div className="p-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-accent mx-auto" />
+                  </div>
+                ) : todayRecords.length === 0 ? (
+                  <div className="p-8 text-center text-white/30">
+                    <ScanFace className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">Belum ada absensi hari ini</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5 max-h-[420px] overflow-y-auto">
+                    {todayRecords.map((rec) => {
+                      const name = (rec.profiles as { full_name: string | null; username: string | null } | null)?.full_name
+                        ?? (rec.profiles as { full_name: string | null; username: string | null } | null)?.username
+                        ?? "Tidak Dikenal";
+                      const time = new Date(rec.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                      const conf = rec.confidence_score ? `${(rec.confidence_score * 100).toFixed(0)}%` : null;
+                      return (
+                        <div key={rec.id} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]">
+                          <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-green-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white text-sm truncate">{name}</p>
+                            <p className="text-white/40 text-xs font-mono">{time} WIB</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-bold uppercase rounded-full">Hadir</span>
+                            {conf && <p className="text-white/30 text-xs mt-0.5">AI {conf}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <style jsx>{`
-        @keyframes scan {
-          0% {
-            top: 10%;
-          }
-          100% {
-            top: 90%;
-          }
-        }
-        .animate-scan {
-          animation: scan 1.5s linear infinite alternate;
-        }
+        @keyframes scan { 0% { top: 10%; } 100% { top: 90%; } }
+        .animate-scan { animation: scan 1.5s linear infinite alternate; }
       `}</style>
     </main>
   );

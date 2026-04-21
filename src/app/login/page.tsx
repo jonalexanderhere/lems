@@ -19,7 +19,7 @@ export default function LoginPage() {
     setError("");
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -27,7 +27,21 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    // Fetch role and redirect accordingly
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", authData.user!.id)
+      .single();
+
+    const role = profile?.role ?? "student";
+    if (role === "admin") {
+      router.push("/dashboard/admin");
+    } else if (role === "teacher") {
+      router.push("/dashboard/teacher");
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   };
 

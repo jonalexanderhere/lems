@@ -309,6 +309,9 @@ export default function TeacherDashboard() {
               {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Reset Murid" : "Analisis & Laporan"}
             </button>
           ))}
+          <Link href="/dashboard/teacher/quiz" className="px-6 py-2.5 text-sm font-bold uppercase tracking-widest bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors flex items-center gap-1.5">
+            📝 Ujian & Ulangan
+          </Link>
         </div>
       </section>
 

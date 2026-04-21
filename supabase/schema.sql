@@ -325,3 +325,99 @@ begin
   end if;
 end;
 $$;
+
+-- =====================
+-- 13. QUIZZES / UJIAN
+-- =====================
+create table if not exists quizzes (
+  id uuid primary key default gen_random_uuid(),
+  teacher_id uuid references profiles(id) on delete set null,
+  class_id uuid references classes(id) on delete set null,
+  title text not null,
+  description text,
+  type text not null default 'ulangan_harian', -- 'ulangan_harian' | 'ulangan_semester'
+  duration_minutes int not null default 60,
+  start_at timestamptz,
+  end_at timestamptz,
+  is_published boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists quiz_questions (
+  id uuid primary key default gen_random_uuid(),
+  quiz_id uuid references quizzes(id) on delete cascade,
+  question_text text not null,
+  option_a text not null,
+  option_b text not null,
+  option_c text not null,
+  option_d text not null,
+  correct_option text not null check (correct_option in ('a','b','c','d')),
+  points int default 1,
+  order_num int default 0,
+  created_at timestamptz default now()
+);
+
+create table if not exists quiz_attempts (
+  id uuid primary key default gen_random_uuid(),
+  quiz_id uuid references quizzes(id) on delete cascade,
+  student_id uuid references profiles(id) on delete cascade,
+  answers jsonb default '{}'::jsonb,  -- { question_id: 'a'|'b'|'c'|'d' }
+  score int,
+  total_questions int,
+  correct_answers int,
+  started_at timestamptz default now(),
+  submitted_at timestamptz,
+  unique(quiz_id, student_id)
+);
+
+-- RLS
+alter table quizzes enable row level security;
+alter table quiz_questions enable row level security;
+alter table quiz_attempts enable row level security;
+
+-- Quizzes: published visible to assigned class; teacher manages own
+create policy "Students read published quizzes"
+  on quizzes for select
+  using (
+    is_published = true and (
+      class_id is null or
+      exists (select 1 from profiles where id = auth.uid() and class_id = quizzes.class_id)
+    )
+  );
+
+create policy "Teachers manage own quizzes"
+  on quizzes for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
+  );
+
+-- Quiz questions: students in class can read if quiz published; teachers manage
+create policy "Students read quiz questions"
+  on quiz_questions for select
+  using (
+    exists (
+      select 1 from quizzes q
+      join profiles p on p.id = auth.uid()
+      where q.id = quiz_questions.quiz_id
+        and q.is_published = true
+        and (q.class_id is null or p.class_id = q.class_id)
+    )
+  );
+
+create policy "Teachers manage quiz questions"
+  on quiz_questions for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
+  );
+
+-- Quiz attempts: students manage own; teachers see all
+create policy "Students manage own attempts"
+  on quiz_attempts for all
+  using (auth.uid() = student_id);
+
+create policy "Teachers view all attempts"
+  on quiz_attempts for select
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
+  );
+
