@@ -55,6 +55,8 @@ export default function AttendancePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
   const [isWithinWindow, setIsWithinWindow] = useState(false);
+  const [countdown, setCountdown] = useState("");
+  const [hasStarted, setHasStarted] = useState(false);
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -110,6 +112,45 @@ export default function AttendancePage() {
     };
     init();
   }, [supabase]);
+
+  // Session Window & Countdown logic
+  useEffect(() => {
+    if (!session) return;
+    const updateCountdown = () => {
+      const now = new Date();
+      const [sH, sM] = session.start_time.split(":").map(Number);
+      const [eH, eM] = session.end_time.split(":").map(Number);
+      
+      const startTime = new Date(); startTime.setHours(sH, sM, 0);
+      const endTime = new Date(); endTime.setHours(eH, eM, 59);
+
+      if (now < startTime) {
+        setHasStarted(false);
+        setIsWithinWindow(false);
+        const diff = startTime.getTime() - now.getTime();
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setCountdown(`Dimulai dlm: ${h}j ${m}m ${s}s`);
+      } else if (now >= startTime && now <= endTime) {
+        setHasStarted(true);
+        setIsWithinWindow(true);
+        const diff = endTime.getTime() - now.getTime();
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setCountdown(`Ditutup dlm: ${h}j ${m}m ${s}s`);
+      } else {
+        setHasStarted(true);
+        setIsWithinWindow(false);
+        setCountdown("Sesi Berakhir");
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   // Automated scanning loop
   useEffect(() => {
@@ -331,8 +372,8 @@ export default function AttendancePage() {
                 <div className="p-3 bg-white/5 border border-white/10 text-center">
                   <BadgeCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
                   <p className="font-bold text-xs mb-0.5">Status Sesi</p>
-                  <p className={`text-xs font-black uppercase tracking-tighter ${isWithinWindow ? "text-green-400" : "text-red-400"}`}>
-                    {isWithinWindow ? "AKTIF" : "TUTUP"}
+                  <p className={`text-[10px] font-black uppercase tracking-tighter ${isWithinWindow ? "text-green-400" : "text-red-400"}`}>
+                    {countdown || (isWithinWindow ? "AKTIF" : "TUTUP")}
                   </p>
                 </div>
               </div>
