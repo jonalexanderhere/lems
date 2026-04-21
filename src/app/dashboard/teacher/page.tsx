@@ -218,11 +218,25 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
     const fetchAttendance = async () => {
-      let query = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
-      if (attClassId) query = query.eq("class_id", attClassId);
-      const { data } = await query;
+      // Fetch manual records
+      let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
+      if (attClassId) manualQuery = manualQuery.eq("class_id", attClassId);
+      const { data: manualData } = await manualQuery;
+
+      // Fetch automated logs
+      const start = `${attDate}T00:00:00Z`;
+      const end = `${attDate}T23:59:59Z`;
+      let logQuery = supabase.from("attendance_logs").select("student_id, status").gte("created_at", start).lte("created_at", end);
+      if (attClassId) logQuery = logQuery.eq("class_id", attClassId);
+      const { data: logData } = await logQuery;
+
       const mapping: Record<string, string> = {};
-      data?.forEach(r => mapping[r.student_id] = r.status);
+      
+      // Logs first (automated)
+      logData?.forEach(r => mapping[r.student_id] = r.status);
+      // Manual records override logs if present
+      manualData?.forEach(r => mapping[r.student_id] = r.status);
+      
       setAttRecords(mapping);
     };
     fetchAttendance();
