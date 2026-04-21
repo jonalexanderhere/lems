@@ -19,7 +19,7 @@ export default function NotFound() {
           LOST.
         </h1>
         <p className="text-white/50 text-xl mb-12 max-w-md mx-auto">
-          This page doesn't exist. Get back on track.
+          This page does not exist. Get back on track.
         </p>
         <Link
           href="/"

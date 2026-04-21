@@ -14,7 +14,7 @@ export function Footer() {
         {/* Second CTA Section */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto mb-32">
           <h2 className="text-4xl md:text-7xl font-heading font-bold text-white uppercase tracking-tighter leading-[0.9] mb-6">
-            You don't need more theory. <br/>
+            You do not need more theory. <br/>
             <span className="text-accent">You need execution.</span>
           </h2>
           <p className="text-xl md:text-2xl text-white/60 font-light mb-12">

@@ -56,7 +56,7 @@ export default function AITutorPage() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
+      const assistantChunks: string[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -73,7 +73,8 @@ export default function AITutorPage() {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) {
-                assistantText += delta;
+                assistantChunks.push(delta);
+                const assistantText = assistantChunks.join("");
                 setMessages((prev) => {
                   const updated = [...prev];
                   updated[updated.length - 1] = {
@@ -89,7 +90,7 @@ export default function AITutorPage() {
           }
         }
       }
-    } catch (err) {
+    } catch {
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {

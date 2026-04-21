@@ -62,6 +62,8 @@ create table if not exists profiles (
   class_id uuid references classes(id) on delete set null,
   year_enrolled int,
   avatar_url text,
+  face_descriptor jsonb,
+  face_enrolled_at timestamptz,
   xp int default 0,
   created_at timestamptz default now()
 );
@@ -276,4 +278,3 @@ create policy "Students can view their own attendance"
 create policy "Students can create their own attendance"
   on attendance_logs for insert
   with check ( student_id = auth.uid() );
-

@@ -1,6 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { ShieldCheck, Award, Fingerprint, Download, Eye } from "lucide-react";
+import { ShieldCheck, Award, Fingerprint, Eye } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {

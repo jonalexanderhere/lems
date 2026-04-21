@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
@@ -12,7 +12,7 @@ type Assignment = { id: string; title: string; due_date: string | null; courses:
 
 export default function TeacherDashboard() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<{ full_name: string; role: string } | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -44,7 +44,7 @@ export default function TeacherDashboard() {
       setClasses(cl ?? []);
     };
     init();
-  }, []);
+  }, [router, supabase]);
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();

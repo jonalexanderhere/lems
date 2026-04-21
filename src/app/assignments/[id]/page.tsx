@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Upload, FileText, CheckCircle2, Clock, Loader2, Download } from "lucide-react";
@@ -31,7 +31,7 @@ type Submission = {
 export default function AssignmentPage() {
   const params = useParams();
   const id = params.id as string;
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
@@ -39,8 +39,8 @@ export default function AssignmentPage() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [grading, setGrading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function AssignmentPage() {
       setLoading(false);
     };
     init();
-  }, [id]);
+  }, [id, supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +94,50 @@ export default function AssignmentPage() {
 
     if (dbErr) { setError("Save failed: " + dbErr.message); setUploading(false); return; }
     setSubmission(data);
-    setSuccess(true);
+
+    setGrading(true);
+    const gradeResponse = await fetch("/api/auto-grade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assignmentTitle: assignment?.title,
+        assignmentDescription: assignment?.description,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        note,
+      }),
+    });
+
+    if (gradeResponse.ok) {
+      const grade = await gradeResponse.json();
+      const score = typeof grade.score === "number" ? grade.score : null;
+      const feedback = typeof grade.feedback === "string" ? grade.feedback : null;
+
+      if (score != null) {
+        await supabase
+          .from("submissions")
+          .update({
+            score,
+            feedback,
+            graded_at: new Date().toISOString(),
+          })
+          .eq("assignment_id", id)
+          .eq("student_id", userId);
+
+        setSubmission((prev) =>
+          prev
+            ? {
+                ...prev,
+                score,
+                feedback,
+              }
+            : prev
+        );
+      }
+    }
+
+    setGrading(false);
     setUploading(false);
   };
 
@@ -148,14 +191,14 @@ export default function AssignmentPage() {
           </div>
         )}
 
-        {/* Teacher's attachment */}
+        {/* Teacher attachment */}
         {assignment.attachment_url && (
           <div className="p-5 bg-white/5 border border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <FileText className="w-5 h-5 text-[#FF2D2D]" />
               <div>
                 <p className="font-bold text-white text-sm">{assignment.attachment_name}</p>
-                <p className="text-white/40 text-xs">Teacher's file attachment</p>
+                <p className="text-white/40 text-xs">Teacher file attachment</p>
               </div>
             </div>
             <a href={assignment.attachment_url} target="_blank" rel="noopener noreferrer"
@@ -189,7 +232,7 @@ export default function AssignmentPage() {
               </div>
             )}
             {submission.score == null && (
-              <p className="text-white/40 text-sm">Menunggu penilaian dari guru...</p>
+              <p className="text-white/40 text-sm">{grading ? "Penilaian otomatis sedang berjalan..." : "Menunggu penilaian otomatis..."}</p>
             )}
             {/* Allow resubmission */}
             <button onClick={() => setSubmission(null)} className="mt-4 text-xs text-white/30 hover:text-white transition-colors underline">

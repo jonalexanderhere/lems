@@ -61,7 +61,7 @@ export default function ContactPage() {
           </div>
 
           {/* Form */}
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-6">
             <div>
               <label className="block text-sm uppercase tracking-widest text-white/50 mb-2">Full Name</label>
               <input type="text" placeholder="Your name" className="w-full bg-white/5 border border-white/10 px-4 py-4 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors" />
@@ -74,7 +74,7 @@ export default function ContactPage() {
               <label className="block text-sm uppercase tracking-widest text-white/50 mb-2">Message</label>
               <textarea rows={6} placeholder="Write your message..." className="w-full bg-white/5 border border-white/10 px-4 py-4 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors resize-none" />
             </div>
-            <button type="submit" className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
+            <button type="button" className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors">
               Send Message <ArrowRight className="w-5 h-5" />
             </button>
           </form>

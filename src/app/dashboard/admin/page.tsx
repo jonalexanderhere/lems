@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Users, TrendingUp, ShieldCheck, GraduationCap, Loader2, LogOut, ArrowRight, AlertTriangle } from "lucide-react";
@@ -12,11 +12,11 @@ type ClassData = { id: string; name: string; grade: string; section: string; cou
 const GRADE_ORDER = ["X", "XI", "XII", "Alumni"];
 const GRADE_NEXT: Record<string, string> = { X: "XI", XI: "XII", XII: "Alumni" };
 
-type ActivityLog = { id: string; user_id: string; action: string; metadata: any; ip_address: string; created_at: string; profiles: { full_name: string; username: string } | null };
+type ActivityLog = { id: string; user_id: string; action: string; metadata: Record<string, unknown> | null; ip_address: string; created_at: string; profiles: { full_name: string; username: string } | null };
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<{ full_name: string } | null>(null);
   const [users, setUsers] = useState<Profile[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
@@ -26,6 +26,33 @@ export default function AdminDashboard() {
   const [promoteResult, setPromoteResult] = useState("");
   const [newYear, setNewYear] = useState("");
   const [updatingRole, setUpdatingRole] = useState("");
+
+  const fetchLogs = useCallback(async () => {
+    const { data } = await supabase
+      .from("activity_logs")
+      .select("*, profiles(full_name, username)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLogs((data ?? []) as ActivityLog[]);
+  }, [supabase]);
+
+  const fetchUsers = useCallback(async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, username, role, xp, classes(name)")
+      .order("created_at", { ascending: false });
+    setUsers((data ?? []) as unknown as Profile[]);
+  }, [supabase]);
+
+  const fetchClasses = useCallback(async () => {
+    const { data: cls } = await supabase.from("classes").select("id, name, grade, section").order("grade").order("section");
+    if (!cls) { setClasses([]); return; }
+    // Count students per class
+    const { data: counts } = await supabase.from("profiles").select("class_id").not("class_id", "is", null);
+    const countMap: Record<string, number> = {};
+    counts?.forEach((p: { class_id: string }) => { countMap[p.class_id] = (countMap[p.class_id] ?? 0) + 1; });
+    setClasses(cls.map((c) => ({ ...c, count: countMap[c.id] ?? 0 })));
+  }, [supabase]);
 
   useEffect(() => {
     const init = async () => {
@@ -39,34 +66,7 @@ export default function AdminDashboard() {
       fetchLogs();
     };
     init();
-  }, []);
-
-  const fetchLogs = async () => {
-    const { data } = await supabase
-      .from("activity_logs")
-      .select("*, profiles(full_name, username)")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setLogs((data ?? []) as ActivityLog[]);
-  };
-
-  const fetchUsers = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, username, role, xp, classes(name)")
-      .order("created_at", { ascending: false });
-    setUsers((data ?? []) as unknown as Profile[]);
-  };
-
-  const fetchClasses = async () => {
-    const { data: cls } = await supabase.from("classes").select("id, name, grade, section").order("grade").order("section");
-    if (!cls) { setClasses([]); return; }
-    // Count students per class
-    const { data: counts } = await supabase.from("profiles").select("class_id").not("class_id", "is", null);
-    const countMap: Record<string, number> = {};
-    counts?.forEach((p: { class_id: string }) => { countMap[p.class_id] = (countMap[p.class_id] ?? 0) + 1; });
-    setClasses(cls.map((c) => ({ ...c, count: countMap[c.id] ?? 0 })));
-  };
+  }, [fetchClasses, fetchLogs, fetchUsers, router, supabase]);
 
   const updateRole = async (userId: string, newRole: string) => {
     setUpdatingRole(userId);

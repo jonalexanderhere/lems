@@ -92,31 +92,25 @@ export function AITutorTeaser() {
 
           <div className="flex-1 w-full ai-visual relative">
             <div className="aspect-square md:aspect-[4/3] rounded-sm bg-white/5 border border-white/10 p-6 flex flex-col relative overflow-hidden">
-              {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 blur-[100px] rounded-full" />
-              
               <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
                 <Bot className="w-6 h-6 text-accent" />
                 <span className="font-heading font-bold uppercase tracking-widest text-white/80 text-sm">Netvora Intelligence</span>
               </div>
               
-              <div className="flex-1 space-y-4 overflow-hidden relative">
-                <div className="p-4 bg-white/5 rounded-sm border border-white/5 max-w-[80%] float-right ml-auto text-white/70 text-sm">
-                  Bagaimana cara konfigurasi static route di Cisco IOS?
+              <div className="flex-1 grid gap-4 content-start">
+                <div className="p-4 bg-white/5 rounded-sm border border-white/5 text-white/70 text-sm">
+                  AI tutor siap dipakai langsung dari halaman khusus.
                 </div>
-                
-                <div className="p-4 bg-accent/10 border border-accent/20 rounded-sm max-w-[90%] text-white text-sm font-mono leading-relaxed mt-16 shadow-[0_0_30px_rgba(255,45,45,0.1)]">
-                  Untuk konfigurasi static route di Cisco IOS, masuk ke mode konfigurasi global dan gunakan format perintah berikut:
-                  <br/><br/>
-                  <span className="text-accent">Router(config)#</span> ip route [destination_network] [subnet_mask] [next-hop_IP]
-                  <br/><br/>
-                  Contoh:
-                  <br/>
-                  <span className="text-accent">Router(config)#</span> ip route 192.168.2.0 255.255.255.0 10.0.0.2
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {features.map((feat) => (
+                    <div key={feat.text} className="p-3 bg-accent/10 border border-accent/20 rounded-sm text-white text-sm">
+                      <feat.icon className="w-4 h-4 text-accent mb-2" />
+                      {feat.text}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Fading bottom edge */}
               <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent z-10" />
             </div>
           </div>

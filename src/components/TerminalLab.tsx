@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Terminal as TerminalIcon, X, Maximize2, Minimize2 } from "lucide-react";
+import { Terminal as TerminalIcon, Maximize2, Minimize2 } from "lucide-react";
 
 interface HistoryItem {
   type: "command" | "output" | "error";

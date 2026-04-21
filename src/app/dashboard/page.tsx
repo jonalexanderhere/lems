@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, Trophy, ClipboardList, Zap, User, LogOut, Terminal as TerminalIcon, Camera } from "lucide-react";
+import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera } from "lucide-react";
 import { TerminalLab } from "@/components/TerminalLab";
 
 export const metadata = { title: "Dashboard | Netvora Academy" };

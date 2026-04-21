@@ -4,21 +4,20 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Trophy, TrendingUp, Hexagon } from "lucide-react";
+import { Trophy, Hexagon } from "lucide-react";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-const leaderboard = [
-  { rank: 1, username: "sys_admin_99", xp: "14,500", trend: "up" },
-  { rank: 2, username: "net_hacker_zero", xp: "13,250", trend: "up" },
-  { rank: 3, username: "cyber_sec_pro", xp: "12,800", trend: "down" },
-  { rank: 4, username: "cisco_master", xp: "11,400", trend: "up" },
-  { rank: 5, username: "linux_guru", xp: "10,950", trend: "same" },
-];
+type Leader = {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  xp: number;
+};
 
-export function Leaderboard() {
+export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
@@ -59,56 +58,59 @@ export function Leaderboard() {
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col items-center text-center mb-16">
             <Trophy className="w-12 h-12 text-accent mb-6" />
-            <h2 className="text-4xl md:text-6xl font-heading font-bold text-white uppercase tracking-tight mb-4">
-              Top Engineers <br/>
-              <span className="text-white/40">This Month</span>
-            </h2>
-          </div>
+          <h2 className="text-4xl md:text-6xl font-heading font-bold text-white uppercase tracking-tight mb-4">
+            Top Engineers <br/>
+            <span className="text-white/40">This Month</span>
+          </h2>
+        </div>
 
+          {leaders.length === 0 ? (
+            <div className="text-center text-white/30 border border-dashed border-white/10 p-16">
+              <Trophy className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg">Leaderboard kosong.</p>
+              <p className="text-sm mt-2">XP akan muncul setelah siswa mulai aktif.</p>
+            </div>
+          ) : (
           <div className="space-y-3">
-            {leaderboard.map((user) => (
+            {leaders.map((user, index) => (
               <div 
-                key={user.rank}
+                key={user.id}
                 className={`leaderboard-row relative flex items-center justify-between p-4 md:p-6 rounded-sm border ${
-                  user.rank === 1 
+                  index === 0 
                     ? "bg-accent/10 border-accent/30 shadow-[0_0_30px_rgba(255,45,45,0.1)]" 
                     : "bg-white/5 border-white/5 hover:bg-white/10"
                 } transition-colors`}
               >
-                {user.rank === 1 && (
+                {index === 0 && (
                   <div className="rank-1-glow absolute inset-0 bg-accent/20 blur-xl opacity-0 pointer-events-none" />
                 )}
 
                 <div className="flex items-center gap-4 md:gap-8 relative z-10">
                   <div className="w-12 h-12 md:w-16 md:h-16 flex items-center justify-center relative">
-                    {user.rank === 1 ? (
+                    {index === 0 ? (
                       <Hexagon className="w-full h-full text-accent fill-accent/20 absolute inset-0" />
                     ) : (
                       <Hexagon className="w-full h-full text-white/20 absolute inset-0" />
                     )}
-                    <span className={`font-heading font-bold text-lg md:text-2xl ${user.rank === 1 ? 'text-accent' : 'text-white'}`}>
-                      {user.rank}
+                    <span className={`font-heading font-bold text-lg md:text-2xl ${index === 0 ? "text-accent" : "text-white"}`}>
+                      {index + 1}
                     </span>
                   </div>
                   
                   <span className="font-mono text-base md:text-xl font-medium text-white">
-                    {user.username}
+                    {user.username ?? user.full_name ?? "Anonymous"}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-6 relative z-10">
-                  <div className="hidden md:flex items-center gap-2 text-white/50">
-                    <TrendingUp className={`w-4 h-4 ${user.trend === 'up' ? 'text-green-500' : user.trend === 'down' ? 'text-red-500' : ''}`} />
-                  </div>
-                  <div className="text-right">
-                    <span className="block font-heading font-bold text-2xl md:text-3xl text-white">
-                      {user.xp} <span className="text-sm md:text-base text-accent uppercase tracking-widest">XP</span>
-                    </span>
-                  </div>
+                <div className="text-right relative z-10">
+                  <span className="block font-heading font-bold text-2xl md:text-3xl text-white">
+                    {user.xp.toLocaleString()} <span className="text-sm md:text-base text-accent uppercase tracking-widest">XP</span>
+                  </span>
                 </div>
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
     </section>

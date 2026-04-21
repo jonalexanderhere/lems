@@ -5,6 +5,8 @@
   --foreground: #F5F5F5;
   --accent: #FF2D2D;
   --accent-foreground: #FFFFFF;
+  --font-inter: Arial, Helvetica, sans-serif;
+  --font-grotesk: "Arial Narrow", Arial, Helvetica, sans-serif;
 }
 
 @theme inline {
