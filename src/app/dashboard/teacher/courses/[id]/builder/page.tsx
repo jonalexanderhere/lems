@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, ArrowLeft, GripVertical, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, GripVertical } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 
 type Lesson = { id: string; title: string; video_url: string; content: string; sort_order: number };

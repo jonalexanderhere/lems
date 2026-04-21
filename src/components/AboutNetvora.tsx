@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Terminal, Globe, Cpu, Users } from "lucide-react";
+import { Globe, Cpu, Users } from "lucide-react";
 
 export function AboutNetvora() {
   return (

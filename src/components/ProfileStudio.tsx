@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { badgeToneClass, deriveBadges, type BadgeChip } from "@/utils/badges";
 import { Camera, Loader2, BadgeCheck } from "lucide-react";
+import Image from "next/image";
 
 type ProfileStudioProps = {
   userId: string;
@@ -70,7 +71,7 @@ export function ProfileStudio({ userId, fullName, username, avatarUrl, xp, badge
           <div className="relative w-24 h-24 shrink-0">
             <div className="absolute inset-0 rounded-full border border-white/10 bg-white/5 overflow-hidden">
               {currentAvatar ? (
-                <img src={currentAvatar} alt={fullName ?? username ?? "Profile"} className="w-full h-full object-cover" />
+                <Image src={currentAvatar} alt={fullName ?? username ?? "Profile"} fill unoptimized sizes="96px" className="object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-2xl font-black text-white/80">
                   {initials}

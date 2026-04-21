@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import Link from "next/link";
+import Image from "next/image";
 
 export const metadata = {
   title: "Leaderboard | Netvora Academy",
@@ -78,7 +79,7 @@ export default async function LeaderboardPage() {
                         <Hexagon className={`w-full h-full absolute ${rank === 1 ? "text-yellow-300 fill-yellow-300/15" : rank === 2 ? "text-slate-200/70 fill-slate-200/10" : rank === 3 ? "text-orange-300 fill-orange-300/10" : "text-white/10"}`} />
                         <div className="absolute inset-1 rounded-full overflow-hidden border border-white/10 bg-black/30 flex items-center justify-center">
                           {user.avatar_url ? (
-                            <img src={user.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                            <Image src={user.avatar_url} alt={displayName} fill unoptimized sizes="56px" className="object-cover" />
                           ) : (
                             <span className={`font-black text-lg ${rank === 1 ? "text-yellow-200" : "text-white"}`}>{initials}</span>
                           )}

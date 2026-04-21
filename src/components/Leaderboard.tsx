@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Trophy, Hexagon, Crown } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import Image from "next/image";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -93,11 +94,11 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
                 )}
 
                 <div className="flex items-center gap-4 md:gap-8 relative z-10">
-                  <div className="w-12 h-12 md:w-16 md:h-16 flex items-center justify-center relative shrink-0">
-                    {user.avatar_url ? (
-                      <img src={user.avatar_url} alt={user.username ?? user.full_name ?? "Avatar"} className="w-12 h-12 md:w-16 md:h-16 object-cover rounded-full border border-white/10" />
-                    ) : (
-                      <>
+                    <div className="w-12 h-12 md:w-16 md:h-16 flex items-center justify-center relative shrink-0">
+                      {user.avatar_url ? (
+                        <Image src={user.avatar_url} alt={user.username ?? user.full_name ?? "Avatar"} fill unoptimized sizes="64px" className="object-cover rounded-full" />
+                      ) : (
+                        <>
                         {index === 0 ? (
                           <Hexagon className="w-full h-full text-yellow-400 fill-yellow-400/15 absolute inset-0" />
                         ) : (

@@ -37,8 +37,6 @@ type Quiz = {
   attempt_count?: number;
 };
 
-type ClassItem = { id: string; name: string };
-
 const TYPE_LABELS: Record<string, string> = {
   ulangan_harian: "Ulangan Harian",
   ulangan_semester: "Ulangan Semester",
@@ -53,7 +51,6 @@ export default function QuizDashboard() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState("");
 
@@ -94,8 +91,6 @@ export default function QuizDashboard() {
         setQuizzes(enriched as Quiz[]);
       }
 
-      const { data: cl } = await supabase.from("classes").select("id, name").order("grade").order("section");
-      setClasses(cl ?? []);
       setLoading(false);
     };
     init();
@@ -113,9 +108,6 @@ export default function QuizDashboard() {
     await supabase.from("quizzes").delete().eq("id", id);
     setQuizzes((prev) => prev.filter((q) => q.id !== id));
   };
-
-  const inputCls = "w-full bg-[#0A0A0A] border border-white/10 px-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors text-sm";
-  const labelCls = "block text-xs uppercase tracking-widest text-white/50 mb-2";
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -218,7 +210,7 @@ export default function QuizDashboard() {
                     {quiz.start_at && (
                       <p className="text-white/30 text-xs mt-1.5">
                         {new Date(quiz.start_at).toLocaleString("id-ID", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                        {quiz.end_at && " – " + new Date(quiz.end_at).toLocaleString("id-ID", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                        {quiz.end_at && " - " + new Date(quiz.end_at).toLocaleString("id-ID", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     )}
                   </div>

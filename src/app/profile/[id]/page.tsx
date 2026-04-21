@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Hexagon, BadgeCheck, Trophy, ArrowLeft } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import Link from "next/link";
+import Image from "next/image";
 
 type ProfilePageProps = {
   params: Promise<{ id: string }>;
@@ -43,7 +44,7 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
               <Hexagon className="w-full h-full absolute text-white/10" />
               <div className="absolute inset-2 rounded-full overflow-hidden border-2 border-white/20 bg-black/50 flex items-center justify-center">
                 {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                  <Image src={profile.avatar_url} alt={displayName} fill unoptimized sizes="112px" className="object-cover" />
                 ) : (
                   <span className="font-black text-3xl text-white">{initials}</span>
                 )}

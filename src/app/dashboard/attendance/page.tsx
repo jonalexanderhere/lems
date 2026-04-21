@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import {
@@ -52,7 +52,6 @@ export default function AttendancePage() {
   const [profile, setProfile] = useState<AttendanceProfile | null>(null);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
-  const [isScanning, setIsScanning] = useState(false);
   const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
   const [isWithinWindow, setIsWithinWindow] = useState(false);
   const [countdown, setCountdown] = useState("");
@@ -60,7 +59,7 @@ export default function AttendancePage() {
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
 
-  const fetchTodayRecords = async () => {
+  const fetchTodayRecords = useCallback(async () => {
     setLoadingRecords(true);
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -75,7 +74,7 @@ export default function AttendancePage() {
 
     setTodayRecords((data ?? []) as unknown as AttendanceRecord[]);
     setLoadingRecords(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     const init = async () => {
@@ -113,7 +112,7 @@ export default function AttendancePage() {
       return () => { supabase.removeChannel(channel); };
     };
     init();
-  }, [supabase]);
+  }, [supabase, fetchTodayRecords]);
 
   // Session Window & Countdown logic
   useEffect(() => {
@@ -150,6 +149,38 @@ export default function AttendancePage() {
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [session]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadModels = async () => {
+      try {
+        const mod = await import("face-api.js");
+        if (cancelled) return;
+        setFaceApi(mod);
+        setMessage("Sedang mengunduh model wajah...");
+        await Promise.all([
+          mod.nets.tinyFaceDetector.loadFromUri("/models"),
+          mod.nets.faceLandmark68Net.loadFromUri("/models"),
+          mod.nets.faceRecognitionNet.loadFromUri("/models"),
+        ]);
+        if (cancelled) return;
+        setModelsReady(true);
+        setStatus("capturing");
+        setMessage("Model AI siap. Gunakan kamera untuk daftar atau verifikasi wajah.");
+      } catch (error) {
+        console.error("Model load error:", error);
+        if (!cancelled) {
+          setStatus("error");
+          setMessage("Gagal memuat model AI. Pastikan folder /models tersedia.");
+        }
+      }
+    };
+
+    loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function verifyAttendance() {
     if (!faceApi || !userId || !enrolledDescriptor) return;
@@ -400,12 +431,15 @@ export default function AttendancePage() {
               </div>
 
               {/* Buttons */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
                 <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <Camera className="w-4 h-4" /> Kamera
                 </button>
                 <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
+                </button>
+                <button onClick={verifyAttendance} disabled={isBusy || !modelsReady || !enrolledDescriptor} className="py-3 bg-green-500/10 text-green-400 border border-green-500/20 text-sm font-bold uppercase tracking-wide hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Verifikasi
                 </button>
               </div>
 

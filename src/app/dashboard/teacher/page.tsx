@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, Eye, BarChart3, FileSpreadsheet, FileText, Edit2 } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";

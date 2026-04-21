@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
-import { ProfileStudio } from "@/components/ProfileStudio";
 import Link from "next/link";
-import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera, Award, Users, ChevronRight } from "lucide-react";
+import { BookOpen, ClipboardList, Zap, Camera, Users, ChevronRight } from "lucide-react";
 
 type ClassInfo = { name: string; grade: string; section: string };
 type Profile = {
