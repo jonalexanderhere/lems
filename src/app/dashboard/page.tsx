@@ -8,14 +8,33 @@ import { ProfileStudio } from "@/components/ProfileStudio";
 import Link from "next/link";
 import { BookOpen, Trophy, ClipboardList, Zap, LogOut, Terminal as TerminalIcon, Camera, Award, Users, ChevronRight } from "lucide-react";
 
+type ClassInfo = { name: string; grade: string; section: string };
+type Profile = {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  role: string;
+  xp: number | null;
+  avatar_url: string | null;
+  badges: string[] | null;
+  class_id: string | null;
+  classes: ClassInfo | null;
+};
+type ClassRow = { id: string; name: string; grade: string; section: string };
+type AssignmentRow = { id: string; title: string; courses: { title: string } | null };
+type QuizRow = { id: string; title: string; end_at: string | null };
+type CourseRow = { id: string; title: string; category?: string | null; level?: string | null; duration_hours?: number | null };
+type SubmissionRow = { assignment_id: string };
+type AttemptRow = { quiz_id: string };
+
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [profile, setProfile] = useState<any>(null);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [quizzes, setQuizzes] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
+  const [courses, setCourses] = useState<CourseRow[]>([]);
   const [submissions, setSubmissions] = useState<Set<string>>(new Set());
   const [attempts, setAttempts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -35,7 +54,14 @@ export default function DashboardPage() {
       if (p?.role === "admin") { router.push("/dashboard/admin"); return; }
       if (p?.role === "teacher") { router.push("/dashboard/teacher"); return; }
       
-      setProfile(p);
+      const normalizedProfile: Profile | null = p
+        ? {
+            ...p,
+            classes: Array.isArray(p.classes) ? p.classes[0] ?? null : p.classes ?? null,
+          }
+        : null;
+
+      setProfile(normalizedProfile);
 
       const classFilter = p?.class_id ? `class_id.eq.${p.class_id},class_id.is.null` : `class_id.is.null`;
 
@@ -52,8 +78,8 @@ export default function DashboardPage() {
       setAssignments(asgn ?? []);
       setQuizzes(qz ?? []);
       setCourses(crs ?? []);
-      setSubmissions(new Set(sub?.map(s => s.assignment_id) ?? []));
-      setAttempts(new Set(att?.map(a => a.quiz_id) ?? []));
+      setSubmissions(new Set((sub ?? []).map((s: SubmissionRow) => s.assignment_id)));
+      setAttempts(new Set((att ?? []).map((a: AttemptRow) => a.quiz_id)));
       setLoading(false);
     };
     init();
@@ -90,7 +116,7 @@ export default function DashboardPage() {
             </h1>
             <div className="flex items-center gap-3 mt-4">
               <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${profile?.classes ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
-                {profile?.classes ? (profile.classes as any).name : "Tanpa Kelas"}
+                {profile?.classes?.name ?? "Tanpa Kelas"}
               </span>
               <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
                 XP: {profile?.xp ?? 0}

@@ -9,6 +9,7 @@ import { useRouter, useParams } from "next/navigation";
 
 type Lesson = { id: string; title: string; video_url: string; content: string; sort_order: number };
 type Module = { id: string; title: string; sort_order: number; lessons: Lesson[] };
+type ModuleRecord = Module;
 
 export default function CourseBuilder() {
   const router = useRouter();
@@ -34,9 +35,9 @@ export default function CourseBuilder() {
       const { data: mods } = await supabase.from("modules").select("*, lessons(*)").eq("course_id", id).order("sort_order", { ascending: true });
       // Sort lessons inside modules
       if (mods) {
-        mods.forEach((m: any) => m.lessons.sort((a: any, b: any) => a.sort_order - b.sort_order));
+        (mods as ModuleRecord[]).forEach((m) => m.lessons.sort((a, b) => a.sort_order - b.sort_order));
       }
-      setModules(mods ?? []);
+      setModules((mods ?? []) as ModuleRecord[]);
       setLoading(false);
     };
     init();
@@ -45,7 +46,7 @@ export default function CourseBuilder() {
   const handleAddModule = async (e: React.FormEvent) => {
     e.preventDefault();
     const sort_order = modules.length;
-    const { data, error } = await supabase.from("modules").insert({ course_id: id, title: modTitle, sort_order }).select("*, lessons(*)").single();
+    const { data } = await supabase.from("modules").insert({ course_id: id, title: modTitle, sort_order }).select("*, lessons(*)").single();
     if (data) setModules([...modules, { ...data, lessons: [] }]);
     setShowModuleForm(false);
     setModTitle("");

@@ -32,7 +32,7 @@ type AttendanceRecord = {
   student_id: string;
   created_at: string;
   status: string;
-  confidence_score: number | null;
+  class_id: string | null;
   profiles: { full_name: string | null; username: string | null } | null;
 };
 
@@ -56,7 +56,6 @@ export default function AttendancePage() {
   const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
   const [isWithinWindow, setIsWithinWindow] = useState(false);
   const [countdown, setCountdown] = useState("");
-  const [hasStarted, setHasStarted] = useState(false);
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -68,8 +67,8 @@ export default function AttendancePage() {
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
     const { data } = await supabase
-      .from("attendance_logs")
-      .select("id, student_id, created_at, status, confidence_score, profiles(full_name, username)")
+      .from("attendance_records")
+      .select("id, student_id, created_at, status, class_id, profiles(full_name, username)")
       .gte("created_at", startOfDay)
       .lt("created_at", endOfDay)
       .order("created_at", { ascending: false });
@@ -128,7 +127,6 @@ export default function AttendancePage() {
       const endTime = new Date(); endTime.setHours(eH, eM, 59);
 
       if (now < startTime) {
-        setHasStarted(false);
         setIsWithinWindow(false);
         const diff = startTime.getTime() - now.getTime();
         const h = Math.floor(diff / 3600000);
@@ -136,7 +134,6 @@ export default function AttendancePage() {
         const s = Math.floor((diff % 60000) / 1000);
         setCountdown(`Dimulai dlm: ${h}j ${m}m ${s}s`);
       } else if (now >= startTime && now <= endTime) {
-        setHasStarted(true);
         setIsWithinWindow(true);
         const diff = endTime.getTime() - now.getTime();
         const h = Math.floor(diff / 3600000);
@@ -144,7 +141,6 @@ export default function AttendancePage() {
         const s = Math.floor((diff % 60000) / 1000);
         setCountdown(`Ditutup dlm: ${h}j ${m}m ${s}s`);
       } else {
-        setHasStarted(true);
         setIsWithinWindow(false);
         setCountdown("Sesi Berakhir");
       }
@@ -155,64 +151,78 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, [session]);
 
-  // Automated scanning loop
-  useEffect(() => {
-    if (!modelsReady || !hasEnrollment || status === "success" || status === "loading-models") return;
-
-    let timer: NodeJS.Timeout;
-    if (status === "capturing" && !isScanning) {
-      timer = setInterval(async () => {
-        setIsScanning(true);
-        await verifyAttendance();
-        setIsScanning(false);
-      }, 3000); // Scan every 3 seconds
-    }
-    return () => clearInterval(timer);
-  }, [modelsReady, hasEnrollment, status, isScanning]);
-
-  useEffect(() => {
-    const loadModels = async () => {
+  async function verifyAttendance() {
+    if (!faceApi || !userId || !enrolledDescriptor) return;
+    if (status !== "capturing") {
       try {
-        if (modelsReady) return;
-        const mod = await import("face-api.js");
-        setFaceApi(mod);
-        setMessage("Sedang mengunduh neural network (5MB)...");
-        await Promise.all([
-          mod.nets.tinyFaceDetector.loadFromUri("/models"),
-          mod.nets.faceLandmark68Net.loadFromUri("/models"),
-          mod.nets.faceRecognitionNet.loadFromUri("/models"),
-        ]);
-        
-        setMessage("Mengoptimalkan model untuk perangkat Anda...");
-        // Warm up the models
-        const dummyCanvas = document.createElement("canvas");
-        dummyCanvas.width = 100;
-        dummyCanvas.height = 100;
-        await mod.detectSingleFace(dummyCanvas, new mod.TinyFaceDetectorOptions());
-        
-        setModelsReady(true);
-        setStatus("capturing");
-        setMessage("Model AI siap. Memasuki mode deteksi otomatis...");
-        
-        // Start camera directly without checking state variable yet
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
         streamRef.current = stream;
-        if (videoRef.current) { 
-          videoRef.current.srcObject = stream; 
-          await videoRef.current.play(); 
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
         }
-      } catch (err) {
-        console.error("Model/Camera loading error:", err);
+        setStatus("capturing");
+      } catch {
         setStatus("error");
-        setMessage("Gagal memuat sistem AI atau kamera. Pastikan folder /models ada dan izin kamera aktif.");
+        setMessage("Gagal mengakses kamera. Pastikan izin kamera sudah aktif.");
+        return;
       }
-    };
-    loadModels();
-  }, []);
+    }
+    if (!streamRef.current) return;
+    if (!isWithinWindow) {
+      setMessage("Sesi absensi untuk kelas Anda belum dimulai atau sudah berakhir.");
+      return;
+    }
 
-  useEffect(() => {
-    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
-  }, []);
+    setStatus("scanning");
+    setMessage("Mencocokkan wajah dengan model AI...");
+    if (!faceApi || !videoRef.current) return;
+    const detection = await faceApi
+      .detectSingleFace(videoRef.current, new faceApi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (!detection) { setStatus("error"); setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik."); return; }
+    const descriptor = detection.descriptor;
+    const distance = faceApi.euclideanDistance(enrolledDescriptor, descriptor);
+    const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
+
+    if (distance > 0.55) {
+      setStatus("capturing");
+      setMessage(`Wajah terdeteksi (Conf: ${(confidence * 100).toFixed(0)}%), tapi kurang cocok. Posisikan wajah lebih pas...`);
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const response = await fetch("/api/attendance/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: today,
+        status: "present",
+        confidence_score: confidence,
+        method: "face_ai",
+      }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; warning?: string };
+    if (!response.ok && response.status !== 207) {
+      setStatus("error");
+      setMessage(payload.error ?? "Gagal menyimpan absensi.");
+      return;
+    }
+
+    setStatus("success");
+    setMessage(`Absensi berhasil. Identitas terkonfirmasi: ${profile?.full_name ?? profile?.username}. Absensi tercatat.`);
+    if (payload.warning) console.warn(payload.warning);
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    await fetchTodayRecords();
+  }
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -221,11 +231,18 @@ export default function AttendancePage() {
   };
 
   const startCamera = async () => {
-    if (!modelsReady) { setStatus("loading-models"); setMessage("Model AI masih dimuat..."); return; }
+    if (!modelsReady) {
+      setStatus("loading-models");
+      setMessage("Model AI masih dimuat...");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
       streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
       setStatus("capturing");
       setMessage(hasEnrollment ? "Kamera aktif. Klik verifikasi absensi." : "Kamera aktif. Klik daftarkan wajah.");
     } catch {
@@ -236,7 +253,9 @@ export default function AttendancePage() {
 
   const clearOverlay = () => {
     const ctx = canvasRef.current?.getContext("2d");
-    if (ctx && canvasRef.current) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
   };
 
   const detectFace = async () => {
@@ -270,68 +289,25 @@ export default function AttendancePage() {
     setStatus("enrolling");
     setMessage("Mendeteksi wajah untuk pendaftaran...");
     const descriptor = await detectFace();
-    if (!descriptor) { setStatus("error"); setMessage("Tidak ada wajah terdeteksi. Posisikan wajah lebih dekat ke kamera."); return; }
+    if (!descriptor) {
+      setStatus("error");
+      setMessage("Tidak ada wajah terdeteksi. Posisikan wajah lebih dekat ke kamera.");
+      return;
+    }
+
     const savedDescriptor = Array.from(descriptor);
     const { error } = await supabase.from("profiles").update({ face_descriptor: savedDescriptor, face_enrolled_at: new Date().toISOString() }).eq("id", userId);
-    if (error) { setStatus("error"); setMessage("Gagal menyimpan profil wajah: " + error.message); return; }
+    if (error) {
+      setStatus("error");
+      setMessage("Gagal menyimpan profil wajah: " + error.message);
+      return;
+    }
+
     setProfile((prev) => prev ? { ...prev, face_descriptor: savedDescriptor, face_enrolled_at: new Date().toISOString() } : prev);
     setStatus("success");
     setMessage("Wajah berhasil didaftarkan. Absensi berikutnya akan otomatis cocok.");
     clearOverlay();
     stopCamera();
-  };
-
-  const verifyAttendance = async () => {
-    if (!faceApi || !userId || !enrolledDescriptor) return;
-    if (status !== "capturing") await startCamera();
-    if (!streamRef.current) return;
-    // ENFORCE WINDOW
-    if (!isWithinWindow) {
-      setMessage("Sesi absensi untuk kelas Anda belum dimulai atau sudah berakhir.");
-      return;
-    }
-
-    setStatus("scanning");
-    setMessage("Mencocokkan wajah dengan model AI...");
-    const descriptor = await detectFace();
-    if (!descriptor) { setStatus("error"); setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik."); return; }
-    const distance = faceApi.euclideanDistance(enrolledDescriptor, descriptor);
-    const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
-    
-    // HABITUATION: If distance is too high, don't error out, just keep trying
-    if (distance > 0.55) { 
-      setMessage(`Wajah terdeteksi (Conf: ${(confidence*100).toFixed(0)}%), tapi kurang cocok. Posisikan wajah lebih pas...`); 
-      return; // The useEffect loop will trigger again in 3s
-    }
-
-    // 1. Insert into logs (automated history)
-    const { error } = await supabase.from("attendance_logs").insert({
-      student_id: userId,
-      class_id: profile?.class_id,
-      method: "face_ai",
-      status: "present",
-      confidence_score: confidence,
-    });
-    if (error) { setStatus("error"); setMessage("Gagal menyimpan log absensi: " + error.message); return; }
-
-    // 2. Hard-insert into attendance_records (main dashboard data)
-    const today = new Date().toISOString().split("T")[0];
-    await supabase.from("attendance_records").upsert({
-      student_id: userId,
-      class_id: profile?.class_id,
-      date: today,
-      status: "present",
-    }, { onConflict: "student_id, date" });
-
-
-    setStatus("success");
-    setMessage(`✓ Absensi Berhasil! Identitas terkonfirmasi: ${profile?.full_name ?? profile?.username}. Absensi tercatat.`);
-    
-    // Auto reset to capturing after 5 seconds to allow next person (if multi-user)
-    // Or stay success if it's personal. Let's stay success for personal.
-    clearOverlay();
-    stopCamera();
-    await fetchTodayRecords();
   };
 
   const isBusy = status === "loading-models" || status === "enrolling" || status === "scanning";
@@ -495,7 +471,6 @@ export default function AttendancePage() {
                         ?? (rec.profiles as { full_name: string | null; username: string | null } | null)?.username
                         ?? "Tidak Dikenal";
                       const time = new Date(rec.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-                      const conf = rec.confidence_score ? `${(rec.confidence_score * 100).toFixed(0)}%` : null;
                       return (
                         <div key={rec.id} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]">
                           <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">
@@ -507,7 +482,6 @@ export default function AttendancePage() {
                           </div>
                           <div className="text-right shrink-0">
                             <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-bold uppercase rounded-full">Hadir</span>
-                            {conf && <p className="text-white/30 text-xs mt-0.5">AI {conf}</p>}
                           </div>
                         </div>
                       );

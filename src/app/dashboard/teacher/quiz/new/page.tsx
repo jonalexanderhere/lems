@@ -248,13 +248,17 @@ export default function NewQuizPage() {
                     const lines = (e.currentTarget.value).split('\n').filter(l => l.includes('|'));
                     const newQs = lines.map(line => {
                       const parts = line.split('|').map(p => p.trim());
+                      const correctOption: Question["correct_option"] = (() => {
+                        const option = parts[5]?.toLowerCase();
+                        return option === "a" || option === "b" || option === "c" || option === "d" ? option : "a";
+                      })();
                       return {
                         question_text: parts[0] || "",
                         option_a: parts[1] || "",
                         option_b: parts[2] || "",
                         option_c: parts[3] || "",
                         option_d: parts[4] || "",
-                        correct_option: (parts[5]?.toLowerCase() as any) || "a",
+                        correct_option: correctOption,
                         points: 10
                       };
                     });

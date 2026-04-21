@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
             }
 
             // Usage information comes in the final chunk
-            const usage = chunk.usage as any;
+            const usage = chunk.usage as { reasoningTokens?: number } | undefined;
             if (usage && usage.reasoningTokens) {
               console.log("[AI Tutor] Reasoning tokens:", usage.reasoningTokens);
             }
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       .find((m) => m.role === "user")
       ?.content?.toLowerCase() ?? "";
 
-    let localAnswer = buildLocalAnswer(lastMsg);
+    const localAnswer = buildLocalAnswer(lastMsg);
     return createStreamingTextResponse(localAnswer);
   }
 }

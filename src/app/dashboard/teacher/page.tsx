@@ -246,11 +246,17 @@ export default function TeacherDashboard() {
     if (tab !== "attendance" || !attDate) return;
     const fetchAttendance = async () => {
       // Fetch manual records for the day
-      let manualQuery = supabase.from("attendance_records").select("student_id, status").eq("date", attDate);
+      let manualQuery = supabase.from("attendance_records").select("student_id, status, class_id").eq("date", attDate);
+      if (attClassId) {
+        manualQuery = manualQuery.eq("class_id", attClassId);
+      }
       // Fetch automated logs for the day with time filter
       const start = `${attDate}T${attStartTime}:00`;
       const end = `${attDate}T${attEndTime}:59`;
-      let logQuery = supabase.from("attendance_logs").select("student_id, status").gte("created_at", start).lte("created_at", end);
+      let logQuery = supabase.from("attendance_logs").select("student_id, status, class_id").gte("created_at", start).lte("created_at", end);
+      if (attClassId) {
+        logQuery = logQuery.eq("class_id", attClassId);
+      }
 
       const [{ data: manualData }, { data: logData }] = await Promise.all([manualQuery, logQuery]);
 
@@ -270,13 +276,14 @@ export default function TeacherDashboard() {
         const newLog = payload.new as { student_id: string; status: string; created_at: string };
         // Only update if it's for the current selected date
         const logDate = newLog.created_at.split("T")[0];
-        if (logDate === attDate) {
+        const logClassId = (payload.new as { class_id?: string | null }).class_id;
+        if (logDate === attDate && (!attClassId || logClassId === attClassId)) {
           setAttRecords(prev => ({ ...prev, [newLog.student_id]: newLog.status }));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
-        const newRec = payload.new as { student_id: string; status: string; date: string };
-        if (newRec.date === attDate) {
+        const newRec = payload.new as { student_id: string; status: string; date: string; class_id?: string | null };
+        if (newRec.date === attDate && (!attClassId || newRec.class_id === attClassId)) {
           setAttRecords(prev => ({ ...prev, [newRec.student_id]: newRec.status }));
         }
       })

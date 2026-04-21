@@ -9,6 +9,19 @@ type CoursePageProps = {
   params: Promise<{ id: string }>;
 };
 
+type LessonRow = {
+  id: string;
+  title: string;
+  sort_order: number;
+};
+
+type ModuleRow = {
+  id: string;
+  title: string;
+  sort_order: number;
+  lessons: LessonRow[];
+};
+
 export default async function CourseDetailPage({ params }: CoursePageProps) {
   const { id } = await params;
   const supabase = await createClient();
@@ -31,9 +44,9 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
     .order("sort_order", { ascending: true });
 
   // sort lessons
-  const modules = (dbModules ?? []).map(m => ({
+  const modules = ((dbModules ?? []) as ModuleRow[]).map((m) => ({
     ...m,
-    lessons: m.lessons.sort((a: any, b: any) => a.sort_order - b.sort_order)
+    lessons: [...(m.lessons as LessonRow[])].sort((a, b) => a.sort_order - b.sort_order)
   }));
 
   return (
@@ -89,7 +102,7 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
                       <p className="font-bold text-white uppercase">BAB {i + 1}: {module.title}</p>
                     </div>
                     <div className="p-2 space-y-1">
-                      {module.lessons.map((lesson: any, j: number) => (
+                      {module.lessons.map((lesson: LessonRow, j: number) => (
                         <Link key={lesson.id} href={`/course/${course.id}/learn/${lesson.id}`} className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors group">
                           <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/50 group-hover:text-[#FF2D2D] group-hover:border-[#FF2D2D]/50 transition-colors shrink-0">
                             {j + 1}

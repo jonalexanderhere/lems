@@ -259,7 +259,7 @@ export default function AssignmentPage() {
                   }
                 }} 
               />
-              <p className="text-white/30 text-xs mt-2">Pastikan link dapat diakses secara publik (contoh: "Anyone with the link").</p>
+              <p className="text-white/30 text-xs mt-2">Pastikan link dapat diakses secara publik (contoh: &quot;Anyone with the link&quot;).</p>
             </div>
 
             <div>
@@ -276,7 +276,7 @@ export default function AssignmentPage() {
           </form>
         )}
 
-        <Link href="/dashboard" className="block text-center text-white/30 hover:text-white text-sm transition-colors">← Back to Dashboard</Link>
+        <Link href="/dashboard" className="block text-center text-white/30 hover:text-white text-sm transition-colors">{`<- Back to Dashboard`}</Link>
       </div>
     </main>
   );
