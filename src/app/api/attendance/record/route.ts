@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { getLocalDateString } from "@/utils/attendance";
 
 type RecordAttendanceBody = {
   status?: "present" | "late" | "sick" | "permission" | "absent";
@@ -31,23 +32,45 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as RecordAttendanceBody;
   const status = body.status ?? "present";
-  const date = body.date ?? new Date().toISOString().split("T")[0];
+  const date = body.date ?? getLocalDateString();
   const method = body.method ?? "face_ai";
   const confidenceScore =
     typeof body.confidence_score === "number" ? body.confidence_score : null;
 
   const admin = createAdminClient();
 
+  const { data: session, error: sessionError } = await admin
+    .from("attendance_sessions")
+    .select("id, start_time, end_time")
+    .eq("class_id", profile.class_id)
+    .eq("date", date)
+    .maybeSingle();
+
+  if (sessionError) {
+    return NextResponse.json({ error: sessionError.message }, { status: 400 });
+  }
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "Sesi absensi untuk kelas ini belum dibuat." },
+      { status: 409 }
+    );
+  }
+
   const attendanceRecord = {
     student_id: user.id,
     class_id: profile.class_id,
+    session_id: session.id,
     date,
     status,
+    method,
+    confidence_score: confidenceScore,
   };
 
   const attendanceLog = {
     student_id: user.id,
     class_id: profile.class_id,
+    session_id: session.id,
     method,
     status,
     confidence_score: confidenceScore,

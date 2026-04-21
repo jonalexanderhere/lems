@@ -17,6 +17,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
+import { getAttendanceWindow, getLocalDateString } from "@/utils/attendance";
 
 type AttendanceProfile = {
   class_id: string | null;
@@ -55,6 +56,7 @@ export default function AttendancePage() {
   const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
   const [isWithinWindow, setIsWithinWindow] = useState(false);
   const [countdown, setCountdown] = useState("");
+  const [sessionDetail, setSessionDetail] = useState("");
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -93,7 +95,7 @@ export default function AttendancePage() {
       // Fetch active session
       const fetchSession = async () => {
         if (p?.class_id) {
-          const todayStr = new Date().toISOString().split("T")[0];
+          const todayStr = getLocalDateString();
           const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
           if (sess) setSession(sess);
         }
@@ -119,30 +121,11 @@ export default function AttendancePage() {
     if (!session) return;
     const updateCountdown = () => {
       const now = new Date();
-      const [sH, sM] = session.start_time.split(":").map(Number);
-      const [eH, eM] = session.end_time.split(":").map(Number);
-      
-      const startTime = new Date(); startTime.setHours(sH, sM, 0);
-      const endTime = new Date(); endTime.setHours(eH, eM, 59);
-
-      if (now < startTime) {
-        setIsWithinWindow(false);
-        const diff = startTime.getTime() - now.getTime();
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        setCountdown(`Dimulai dlm: ${h}j ${m}m ${s}s`);
-      } else if (now >= startTime && now <= endTime) {
-        setIsWithinWindow(true);
-        const diff = endTime.getTime() - now.getTime();
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        setCountdown(`Ditutup dlm: ${h}j ${m}m ${s}s`);
-      } else {
-        setIsWithinWindow(false);
-        setCountdown("Sesi Berakhir");
-      }
+      const today = getLocalDateString(now);
+      const window = getAttendanceWindow(today, session.start_time, session.end_time, now);
+      setIsWithinWindow(window?.isActive ?? false);
+      setCountdown(window?.headline ?? "");
+      setSessionDetail(window?.detail ?? "");
     };
 
     updateCountdown();
@@ -223,7 +206,7 @@ export default function AttendancePage() {
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDateString();
     const response = await fetch("/api/attendance/record", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -384,6 +367,9 @@ export default function AttendancePage() {
                   <p className="font-bold text-xs mb-0.5">Status Sesi</p>
                   <p className={`text-[10px] font-black uppercase tracking-tighter ${isWithinWindow ? "text-green-400" : "text-red-400"}`}>
                     {countdown || (isWithinWindow ? "AKTIF" : "TUTUP")}
+                  </p>
+                  <p className="text-[10px] text-white/35 mt-1 leading-tight">
+                    {sessionDetail || "Jam sesi akan tampil di sini."}
                   </p>
                 </div>
               </div>

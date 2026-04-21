@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { Users, TrendingUp, ShieldCheck, GraduationCap, Loader2, LogOut, ArrowRight, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getAttendanceWindow, getLocalDateString } from "@/utils/attendance";
 
 type Profile = { id: string; full_name: string; username: string; role: string; xp: number; classes: { name: string } | null };
 type ClassData = { id: string; name: string; grade: string; section: string; count?: number };
@@ -24,6 +25,32 @@ const GRADE_ORDER = ["X", "XI", "XII", "Alumni"];
 const GRADE_NEXT: Record<string, string> = { X: "XI", XI: "XII", XII: "Alumni" };
 
 type ActivityLog = { id: string; user_id: string; action: string; metadata: Record<string, unknown> | null; ip_address: string; created_at: string; profiles: { full_name: string; username: string } | null };
+type AttendanceSession = {
+  id: string;
+  class_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  teacher_id: string | null;
+  classes: { name: string } | null;
+  profiles: { full_name: string | null } | null;
+};
+
+type AttendanceSessionRow = {
+  id: string;
+  class_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  teacher_id: string | null;
+  classes: { name: string } | { name: string }[] | null;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+};
+
+function firstItem<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -32,7 +59,8 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
-  const [tab, setTab] = useState<"users" | "classes" | "promote" | "logs" | "students">("users");
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
+  const [tab, setTab] = useState<"users" | "classes" | "attendance" | "promote" | "logs" | "students">("users");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [promoting, setPromoting] = useState(false);
   const [promoteResult, setPromoteResult] = useState("");
@@ -40,6 +68,7 @@ export default function AdminDashboard() {
   const [updatingRole, setUpdatingRole] = useState("");
   const [resettingEmail, setResettingEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const fetchLogs = useCallback(async () => {
     const { data } = await supabase
@@ -78,6 +107,21 @@ export default function AdminDashboard() {
     setStudents(payload.users ?? []);
   }, []);
 
+  const fetchAttendanceSessions = useCallback(async () => {
+    const today = getLocalDateString();
+    const { data } = await supabase
+      .from("attendance_sessions")
+      .select("id, class_id, date, start_time, end_time, teacher_id, classes(name), profiles(full_name)")
+      .eq("date", today)
+      .order("start_time", { ascending: true });
+    const normalized = (data ?? []).map((session: AttendanceSessionRow) => ({
+      ...session,
+      classes: firstItem(session.classes) ? { name: firstItem(session.classes)!.name } : null,
+      profiles: firstItem(session.profiles) ? { full_name: firstItem(session.profiles)!.full_name } : null,
+    }));
+    setAttendanceSessions(normalized);
+  }, [supabase]);
+
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -87,11 +131,17 @@ export default function AdminDashboard() {
       setProfile(p);
       fetchUsers();
       fetchClasses();
+      fetchAttendanceSessions();
       fetchLogs();
       fetchStudents();
     };
     init();
-  }, [fetchClasses, fetchLogs, fetchStudents, fetchUsers, router, supabase]);
+  }, [fetchAttendanceSessions, fetchClasses, fetchLogs, fetchStudents, fetchUsers, router, supabase]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const updateRole = async (userId: string, newRole: string) => {
     setUpdatingRole(userId);
@@ -188,9 +238,10 @@ export default function AdminDashboard() {
         </div>
 
         <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
-            {([
+          {([
             { key: "users", label: "Pengguna", icon: Users },
             { key: "classes", label: "Kelas", icon: GraduationCap },
+            { key: "attendance", label: "Absensi", icon: ShieldCheck },
             { key: "logs", label: "Log Aktivitas", icon: ShieldCheck },
             { key: "students", label: "Reset Murid", icon: Users },
             { key: "promote", label: "Kenaikan Kelas", icon: GraduationCap },
@@ -261,6 +312,60 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ATTENDANCE */}
+        {tab === "attendance" && (
+          <div>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Sesi Absensi Hari Ini</h2>
+                <p className="text-white/40 text-sm mt-2">Pantau sesi aktif, jam mulai, dan jam selesai dari satu tempat.</p>
+              </div>
+              <div className="text-white/40 text-sm">{attendanceSessions.length} sesi ditemukan hari ini</div>
+            </div>
+
+            {attendanceSessions.length === 0 ? (
+              <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
+                <ShieldCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p>Belum ada sesi absensi hari ini.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {attendanceSessions.map((session) => {
+                  const window = getAttendanceWindow(session.date, session.start_time, session.end_time, new Date(clockNow));
+                  return (
+                    <div key={session.id} className="p-5 bg-white/5 border border-white/10">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-widest mb-1">{session.classes?.name ?? "Tanpa Kelas"}</p>
+                          <h3 className="font-black text-lg text-white">{session.profiles?.full_name ?? "Guru"}</h3>
+                          <p className="text-white/40 text-sm mt-1">Tanggal {new Date(session.date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest border ${window?.phase === "live" ? "border-green-400/30 bg-green-500/15 text-green-300" : window?.phase === "upcoming" ? "border-yellow-400/30 bg-yellow-500/15 text-yellow-300" : "border-white/10 bg-white/5 text-white/40"}`}>
+                          {window?.phase === "live" ? "Aktif" : window?.phase === "upcoming" ? "Menunggu" : "Selesai"}
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <p className="text-sm font-bold text-white">{window?.headline ?? "Jadwal tidak tersedia"}</p>
+                        <p className="text-white/40 text-xs mt-1">{window?.detail ?? "Data sesi belum lengkap."}</p>
+                      </div>
+                      <div className="mt-4 h-2 bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${window?.phase === "live" ? "bg-green-400" : window?.phase === "upcoming" ? "bg-yellow-400" : "bg-white/20"}`}
+                          style={{ width: `${window?.progress ?? 0}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-widest text-white/35">
+                        <span>Mulai {window?.startLabel ?? "--:--"}</span>
+                        <span>Selesai {window?.endLabel ?? "--:--"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

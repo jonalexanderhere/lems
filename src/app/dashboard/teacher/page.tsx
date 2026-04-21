@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getAttendanceWindow, getLocalDateString, isValidTimeRange, normalizeTimeValue, setTimePart, splitTimeValue } from "@/utils/attendance";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -29,6 +30,9 @@ type ReportSubmission = {
   assignments: { title: string; class_id: string | null; classes: { name: string } | null } | null;
   profiles: { full_name: string | null; username: string | null } | null;
 };
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"));
 
 function firstItem<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -57,13 +61,15 @@ export default function TeacherDashboard() {
   const [assignForm, setAssignForm] = useState({ title: "", description: "", course_id: "", class_id: "", due_date: "" });
   const [assignFile, setAssignFile] = useState<File | null>(null);
   // Attendance
-  const [attDate, setAttDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attDate, setAttDate] = useState(getLocalDateString());
   const [attClassId, setAttClassId] = useState("");
   const [attStartTime, setAttStartTime] = useState("00:00");
   const [attEndTime, setAttEndTime] = useState("23:59");
   const [lastSessKey, setLastSessKey] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attSaving, setAttSaving] = useState(false);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -221,6 +227,16 @@ export default function TeacherDashboard() {
     setResettingEmail("");
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const attendancePreview = useMemo(
+    () => getAttendanceWindow(attDate, attStartTime, attEndTime, new Date(clockNow)),
+    [attDate, attStartTime, attEndTime, clockNow]
+  );
+
   // 1. EFFECT TO LOAD SESSION TIMES (ONLY when class/date selection actually changes)
   useEffect(() => {
     if (tab !== "attendance" || !attDate || !attClassId) return;
@@ -230,9 +246,11 @@ export default function TeacherDashboard() {
     const loadSession = async () => {
       const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
       if (sess) {
-        setAttStartTime(sess.start_time.substring(0, 5));
-        setAttEndTime(sess.end_time.substring(0, 5));
+        setSessionId(sess.id);
+        setAttStartTime(normalizeTimeValue(sess.start_time));
+        setAttEndTime(normalizeTimeValue(sess.end_time));
       } else {
+        setSessionId("");
         setAttStartTime("07:00");
         setAttEndTime("14:00");
       }
@@ -299,6 +317,7 @@ export default function TeacherDashboard() {
     const records = Object.entries(attRecords).map(([student_id, status]) => ({
       student_id,
       date: attDate,
+      session_id: sessionId || null,
       status,
       class_id: students.find(s => s.id === student_id)?.class_id || null
     }));
@@ -312,18 +331,25 @@ export default function TeacherDashboard() {
 
   const handleSaveSession = async () => {
     if (!attClassId) { alert("Pilih kelas terlebih dahulu."); return; }
+    if (!isValidTimeRange(attStartTime, attEndTime)) {
+      alert("Jam selesai harus lebih besar dari jam mulai.");
+      return;
+    }
     setAttSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("attendance_sessions").upsert({
+    const { data: savedSession, error } = await supabase.from("attendance_sessions").upsert({
       class_id: attClassId,
       date: attDate,
-      start_time: attStartTime,
-      end_time: attEndTime,
+      start_time: normalizeTimeValue(attStartTime),
+      end_time: normalizeTimeValue(attEndTime),
       teacher_id: user?.id
-    }, { onConflict: "class_id, date" });
+    }, { onConflict: "class_id, date" }).select("id").single();
 
     if (error) { alert("Gagal menyimpan sesi: " + error.message); }
-    else { alert("Sesi absensi berhasil ditetapkan untuk kelas ini."); }
+    else {
+      if (savedSession?.id) setSessionId(savedSession.id);
+      alert("Sesi absensi berhasil ditetapkan untuk kelas ini.");
+    }
     setAttSaving(false);
   };
 
@@ -750,18 +776,56 @@ export default function TeacherDashboard() {
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
                 <p className="text-white/40 text-sm mt-2">Terdaftar {students.length} murid di sistem.</p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(280px,1fr)] w-full">
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Tanggal</span>
                   <input type="date" className={inputCls} value={attDate} onChange={(e) => setAttDate(e.target.value)} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Dari Jam</span>
-                  <input type="time" className={inputCls} value={attStartTime} onChange={(e) => setAttStartTime(e.target.value)} />
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Mulai</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className={inputCls}
+                      value={splitTimeValue(attStartTime).hour}
+                      onChange={(e) => setAttStartTime(setTimePart(attStartTime, "hour", e.target.value))}
+                    >
+                      {HOUR_OPTIONS.map((hour) => (
+                        <option key={hour} value={hour}>{hour}</option>
+                      ))}
+                    </select>
+                    <select
+                      className={inputCls}
+                      value={splitTimeValue(attStartTime).minute}
+                      onChange={(e) => setAttStartTime(setTimePart(attStartTime, "minute", e.target.value))}
+                    >
+                      {MINUTE_OPTIONS.map((minute) => (
+                        <option key={minute} value={minute}>{minute}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Sampai Jam</span>
-                  <input type="time" className={inputCls} value={attEndTime} onChange={(e) => setAttEndTime(e.target.value)} />
+                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Selesai</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className={inputCls}
+                      value={splitTimeValue(attEndTime).hour}
+                      onChange={(e) => setAttEndTime(setTimePart(attEndTime, "hour", e.target.value))}
+                    >
+                      {HOUR_OPTIONS.map((hour) => (
+                        <option key={hour} value={hour}>{hour}</option>
+                      ))}
+                    </select>
+                    <select
+                      className={inputCls}
+                      value={splitTimeValue(attEndTime).minute}
+                      onChange={(e) => setAttEndTime(setTimePart(attEndTime, "minute", e.target.value))}
+                    >
+                      {MINUTE_OPTIONS.map((minute) => (
+                        <option key={minute} value={minute}>{minute}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Kelas</span>
@@ -770,9 +834,26 @@ export default function TeacherDashboard() {
                     {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                <div className="flex flex-col">
+                <div className="p-4 bg-white/5 border border-white/10 min-h-[118px]">
+                  <p className="text-[10px] text-white/30 uppercase font-bold">Pratinjau Sesi</p>
+                  <p className={`mt-2 text-sm font-bold ${attendancePreview?.phase === "live" ? "text-green-400" : attendancePreview?.phase === "upcoming" ? "text-yellow-400" : "text-white/70"}`}>
+                    {attendancePreview?.headline ?? "Pilih tanggal dan jam untuk melihat hitungan waktu."}
+                  </p>
+                  <p className="text-white/35 text-xs mt-2">{attendancePreview?.detail ?? "Preview akan muncul setelah tanggal dan jam diisi."}</p>
+                  <div className="mt-3 h-2 bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${attendancePreview?.phase === "live" ? "bg-green-400" : attendancePreview?.phase === "upcoming" ? "bg-yellow-400" : "bg-[#FF2D2D]"}`}
+                      style={{ width: `${attendancePreview?.progress ?? 0}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-white/35">
+                    <span>Mulai {attendancePreview?.startLabel ?? "--:--"}</span>
+                    <span>Selesai {attendancePreview?.endLabel ?? "--:--"}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col xl:col-span-5">
                   <span className="text-[10px] opacity-0 mb-1">.</span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button onClick={handleSaveSession} disabled={attSaving} className="px-6 py-2.5 bg-white/10 text-white border border-white/20 font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
                       {attSaving ? "..." : "Set Sesi"}
                     </button>
