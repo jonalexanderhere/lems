@@ -43,8 +43,10 @@ export default function NewQuizPage() {
     type: "ulangan_harian",
     class_id: "",
     duration_minutes: 60,
-    start_at: "",
-    end_at: "",
+    start_date: "",
+    start_time: "",
+    end_date: "",
+    end_time: "",
   });
 
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
@@ -64,6 +66,8 @@ export default function NewQuizPage() {
     setSaving(true);
     setError("");
     const { data: { user } } = await supabase.auth.getUser();
+    const start_at = form.start_date && form.start_time ? `${form.start_date}T${form.start_time}:00` : null;
+    const end_at = form.end_date && form.end_time ? `${form.end_date}T${form.end_time}:00` : null;
     const { data, error: err } = await supabase
       .from("quizzes")
       .insert({
@@ -72,8 +76,8 @@ export default function NewQuizPage() {
         type: form.type,
         class_id: form.class_id || null,
         duration_minutes: form.duration_minutes,
-        start_at: form.start_at || null,
-        end_at: form.end_at || null,
+        start_at,
+        end_at,
         teacher_id: user!.id,
         is_published: false,
       })
@@ -212,13 +216,19 @@ export default function NewQuizPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
+              <div className="space-y-3">
                 <label className={labelCls}>Waktu Mulai</label>
-                <input type="datetime-local" className={inputCls} value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input type="date" className={inputCls} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                  <input type="time" step={60} className={inputCls} value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                </div>
               </div>
-              <div>
+              <div className="space-y-3">
                 <label className={labelCls}>Waktu Selesai</label>
-                <input type="datetime-local" className={inputCls} value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input type="date" className={inputCls} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+                  <input type="time" step={60} className={inputCls} value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                </div>
               </div>
             </div>
 

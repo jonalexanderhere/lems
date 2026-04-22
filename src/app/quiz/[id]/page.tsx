@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Navigation } from "@/components/Navigation";
-import { ArrowLeft, Clock, FileQuestion, GraduationCap, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Clock, FileQuestion, GraduationCap, PlayCircle, ShieldAlert } from "lucide-react";
 
 type QuizPageProps = {
   params: Promise<{ id: string }>;
@@ -33,6 +33,7 @@ function formatRange(startAt: string | null, endAt: string | null) {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   if (!endAt) return start;
   const end = new Date(endAt).toLocaleString("id-ID", {
@@ -40,6 +41,7 @@ function formatRange(startAt: string | null, endAt: string | null) {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
   return `${start} - ${end}`;
 }
@@ -83,12 +85,13 @@ export default async function StudentQuizPage({ params }: QuizPageProps) {
   const now = new Date();
   const isEnded = normalizedQuiz.end_at ? new Date(normalizedQuiz.end_at) < now : false;
   const isStarted = normalizedQuiz.start_at ? new Date(normalizedQuiz.start_at) <= now : true;
-  const canAttempt = normalizedQuiz.is_published && isStarted && !isEnded;
-
   const { count: questionCount } = await supabase
     .from("quiz_questions")
     .select("*", { count: "exact", head: true })
     .eq("quiz_id", id);
+
+  const hasQuestions = (questionCount ?? 0) > 0;
+  const canAttempt = normalizedQuiz.is_published && isStarted && !isEnded && hasQuestions;
 
   const { data: attempt } = await supabase
     .from("quiz_attempts")
@@ -155,7 +158,7 @@ export default async function StudentQuizPage({ params }: QuizPageProps) {
               <p className="text-sm font-bold text-white flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-[#FF2D2D]" />
                 {canAttempt
-                  ? "Ujian bisa dibuka dari sini setelah flow pengerjaan diaktifkan."
+                  ? "Klik mulai untuk mengerjakan kuis ini."
                   : "Ujian belum bisa dikerjakan karena belum aktif, belum dijadwalkan, atau sudah selesai."}
               </p>
               <p className="text-white/40 text-sm mt-2">
@@ -166,6 +169,15 @@ export default async function StudentQuizPage({ params }: QuizPageProps) {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
+              {canAttempt && (
+                <Link
+                  href={`/quiz/${quiz.id}/take`}
+                  className="px-5 py-3 bg-green-500 text-black font-bold uppercase tracking-widest hover:bg-white transition-colors inline-flex items-center gap-2"
+                >
+                  <PlayCircle className="w-4 h-4" />
+                  {attempt && !attempt.submitted_at ? "Lanjut Mengerjakan" : "Mulai Mengerjakan"}
+                </Link>
+              )}
               <Link
                 href="/dashboard"
                 className="px-5 py-3 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"

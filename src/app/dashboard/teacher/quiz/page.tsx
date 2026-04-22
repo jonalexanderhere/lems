@@ -47,6 +47,17 @@ const TYPE_COLORS: Record<string, string> = {
   ulangan_semester: "bg-purple-500/20 text-purple-400",
 };
 
+function formatDateTime24(value: string | null) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("id-ID", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export default function QuizDashboard() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -209,8 +220,8 @@ export default function QuizDashboard() {
                     </div>
                     {quiz.start_at && (
                       <p className="text-white/30 text-xs mt-1.5">
-                        {new Date(quiz.start_at).toLocaleString("id-ID", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                        {quiz.end_at && " - " + new Date(quiz.end_at).toLocaleString("id-ID", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                        {formatDateTime24(quiz.start_at)}
+                        {quiz.end_at && " - " + formatDateTime24(quiz.end_at)}
                       </p>
                     )}
                   </div>
