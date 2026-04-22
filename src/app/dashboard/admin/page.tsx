@@ -3,9 +3,10 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
-import { Users, TrendingUp, ShieldCheck, GraduationCap, Loader2, LogOut, ArrowRight, AlertTriangle } from "lucide-react";
+import { Users, TrendingUp, ShieldCheck, GraduationCap, Loader2, LogOut, ArrowRight, AlertTriangle, Activity } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getAttendanceWindow, getLocalDateString } from "@/utils/attendance";
+import { AdminTrafficPanel, type TrafficActivityLog, type TrafficAttendanceLog } from "@/components/AdminTrafficPanel";
 
 type Profile = { id: string; full_name: string; username: string; role: string; xp: number; classes: { name: string } | null };
 type ClassData = { id: string; name: string; grade: string; section: string; count?: number };
@@ -25,6 +26,8 @@ const GRADE_ORDER = ["X", "XI", "XII", "Alumni"];
 const GRADE_NEXT: Record<string, string> = { X: "XI", XI: "XII", XII: "Alumni" };
 
 type ActivityLog = { id: string; user_id: string; action: string; metadata: Record<string, unknown> | null; ip_address: string; created_at: string; profiles: { full_name: string; username: string } | null };
+type ActivityLogRow = { id: string; user_id: string; action: string; metadata: Record<string, unknown> | null; ip_address: string; created_at: string; profiles: { full_name: string | null; username: string | null } | { full_name: string | null; username: string | null }[] | null };
+type AttendanceTrafficRow = { id: string; student_id: string; status: string; method: string | null; confidence_score: number | null; created_at: string; class_id: string | null; profiles: { full_name: string | null; username: string | null } | { full_name: string | null; username: string | null }[] | null; classes: { name: string } | { name: string }[] | null };
 type AttendanceSession = {
   id: string;
   class_id: string;
@@ -60,8 +63,11 @@ export default function AdminDashboard() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
-  const [tab, setTab] = useState<"users" | "classes" | "attendance" | "promote" | "logs" | "students">("users");
+  const [tab, setTab] = useState<"users" | "classes" | "attendance" | "promote" | "logs" | "students" | "traffic">("users");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [trafficActivityLogs, setTrafficActivityLogs] = useState<TrafficActivityLog[]>([]);
+  const [trafficAttendanceLogs, setTrafficAttendanceLogs] = useState<TrafficAttendanceLog[]>([]);
+  const [trafficLoading, setTrafficLoading] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [promoteResult, setPromoteResult] = useState("");
   const [newYear, setNewYear] = useState("");
@@ -77,6 +83,54 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false })
       .limit(50);
     setLogs((data ?? []) as ActivityLog[]);
+  }, [supabase]);
+
+  const fetchTrafficData = useCallback(async () => {
+    setTrafficLoading(true);
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: activityData }, { data: attendanceData }] = await Promise.all([
+        supabase
+          .from("activity_logs")
+          .select("id, user_id, action, metadata, ip_address, created_at, profiles(full_name, username)")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabase
+          .from("attendance_logs")
+          .select("id, student_id, status, method, confidence_score, created_at, class_id, profiles(full_name, username), classes(name)")
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ]);
+
+      const activity = (activityData ?? []).map((row: ActivityLogRow) => ({
+        id: row.id,
+        user_id: row.user_id,
+        action: row.action,
+        metadata: row.metadata,
+        ip_address: row.ip_address,
+        created_at: row.created_at,
+        profiles: firstItem(row.profiles),
+      }));
+
+      const attendance = (attendanceData ?? []).map((row: AttendanceTrafficRow) => ({
+        id: row.id,
+        student_id: row.student_id,
+        status: row.status,
+        method: row.method,
+        confidence_score: row.confidence_score,
+        created_at: row.created_at,
+        class_id: row.class_id,
+        profiles: firstItem(row.profiles),
+        classes: firstItem(row.classes),
+      }));
+
+      setTrafficActivityLogs(activity);
+      setTrafficAttendanceLogs(attendance);
+    } finally {
+      setTrafficLoading(false);
+    }
   }, [supabase]);
 
   const fetchUsers = useCallback(async () => {
@@ -138,15 +192,68 @@ export default function AdminDashboard() {
       fetchClasses();
       fetchAttendanceSessions();
       fetchLogs();
+      fetchTrafficData();
       fetchStudents();
     };
     init();
-  }, [fetchAttendanceSessions, fetchClasses, fetchLogs, fetchStudents, fetchUsers, router, supabase]);
+  }, [fetchAttendanceSessions, fetchClasses, fetchLogs, fetchStudents, fetchTrafficData, fetchUsers, router, supabase]);
 
   useEffect(() => {
     const timer = setInterval(() => setClockNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const activityChannel = supabase
+      .channel("admin-traffic-activity")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_logs" }, (payload) => {
+        const row = payload.new as ActivityLogRow;
+        const next = {
+          id: row.id,
+          user_id: row.user_id,
+          action: row.action,
+          metadata: row.metadata,
+          ip_address: row.ip_address,
+          created_at: row.created_at,
+          profiles: firstItem(row.profiles),
+        };
+        setTrafficActivityLogs((prev) => [next, ...prev.filter((item) => item.id !== next.id)].slice(0, 200));
+        setLogs((prev) => [{
+          ...next,
+          profiles: next.profiles ? {
+            full_name: next.profiles.full_name ?? "",
+            username: next.profiles.username ?? "",
+          } : null,
+        }, ...prev].slice(0, 50));
+      })
+      .subscribe();
+
+    const attendanceChannel = supabase
+      .channel("admin-traffic-attendance")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "attendance_logs" }, (payload) => {
+        const row = payload.new as AttendanceTrafficRow;
+        const next = {
+          id: row.id,
+          student_id: row.student_id,
+          status: row.status,
+          method: row.method,
+          confidence_score: row.confidence_score,
+          created_at: row.created_at,
+          class_id: row.class_id,
+          profiles: firstItem(row.profiles),
+          classes: firstItem(row.classes),
+        };
+        setTrafficAttendanceLogs((prev) => [next, ...prev.filter((item) => item.id !== next.id)].slice(0, 200));
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(activityChannel);
+      void supabase.removeChannel(attendanceChannel);
+    };
+  }, [profile, supabase]);
 
   const updateRole = async (userId: string, newRole: string) => {
     setUpdatingRole(userId);
@@ -248,6 +355,7 @@ export default function AdminDashboard() {
             { key: "classes", label: "Kelas", icon: GraduationCap },
             { key: "attendance", label: "Absensi", icon: ShieldCheck },
             { key: "logs", label: "Log Aktivitas", icon: ShieldCheck },
+            { key: "traffic", label: "Traffic", icon: Activity },
             { key: "students", label: "Reset Murid", icon: Users },
             { key: "promote", label: "Kenaikan Kelas", icon: GraduationCap },
           ] as const).map(({ key, label, icon: Icon }) => (
@@ -371,6 +479,26 @@ export default function AdminDashboard() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TRAFFIC */}
+        {tab === "traffic" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-[0.28em] mb-2">Traffic Center</p>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Grafik request dan logs realtime</h2>
+                <p className="text-white/40 text-sm mt-2">Pantau request activity, absensi, dan event baru secara live dalam satu panel.</p>
+              </div>
+              <div className="text-white/40 text-sm">Live feed dari activity_logs + attendance_logs</div>
+            </div>
+            <AdminTrafficPanel
+              activityLogs={trafficActivityLogs}
+              attendanceLogs={trafficAttendanceLogs}
+              loading={trafficLoading}
+              onRefresh={fetchTrafficData}
+            />
           </div>
         )}
 
