@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { Hexagon, BadgeCheck, Trophy, ArrowLeft } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import { getXpRank, xpRankClass } from "@/utils/rank";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -24,6 +25,7 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
   if (!profile) notFound();
 
   const badges = deriveBadges({ xp: profile.xp ?? 0, badges: Array.isArray(profile.badges) ? profile.badges : [] });
+  const xpRank = getXpRank(profile.xp ?? 0);
   const displayName = profile.username ?? profile.full_name ?? "Anonymous";
   const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
   const classEntry = Array.isArray(profile.classes) ? profile.classes[0] ?? null : profile.classes;
@@ -65,6 +67,9 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
                 {displayName}
               </h1>
               <p className="text-white/40 font-mono text-sm">{profile.full_name ?? "Tidak ada nama lengkap"}</p>
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-3 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+                Rank: {xpRank.label}
+              </span>
             </div>
             <div className="text-center md:text-right p-6 bg-black/40 border border-white/5 rounded-sm">
               <p className="font-black text-4xl md:text-5xl text-white flex items-center justify-center md:justify-end gap-3">

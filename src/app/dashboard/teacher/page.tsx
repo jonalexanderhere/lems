@@ -442,6 +442,30 @@ export default function TeacherDashboard() {
     });
   }, [reportClassId, submissions]);
 
+  const attendanceRows = useMemo(() => {
+    return attendanceFeed.map((row) => ({
+      StudentID: row.student_id,
+      Nama: row.full_name ?? row.username ?? "Unknown",
+      Username: row.username ?? "-",
+      Kelas: row.class_name ?? "-",
+      Tanggal: new Date(row.created_at).toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      }),
+      Jam: new Date(row.created_at).toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Jakarta",
+      }),
+      Status: row.status,
+    }));
+  }, [attendanceFeed]);
+
   const reportStats = useMemo(() => {
     const graded = reportRows.filter((row) => typeof row.score === "number");
     const scores = graded.map((row) => Number(row.score ?? 0));
@@ -502,6 +526,29 @@ export default function TeacherDashboard() {
       headStyles: { fillColor: [255, 45, 45] },
     });
     doc.save(`laporan-nilai-${selectedClassLabel.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  };
+
+  const downloadAttendanceExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(attendanceRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Absensi");
+    XLSX.writeFile(workbook, `rekap-absensi-${attDate}.xlsx`);
+  };
+
+  const downloadAttendancePDF = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(16);
+    doc.text(`Rekap Absensi - ${attDate}`, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Total log: ${attendanceRows.length} | Siswa unik: ${new Set(attendanceFeed.map((row) => row.student_id)).size}`, 14, 24);
+    autoTable(doc, {
+      startY: 30,
+      head: [["Nama", "Username", "Kelas", "Tanggal", "Jam", "Status"]],
+      body: attendanceRows.map((row) => [row.Nama, row.Username, row.Kelas, row.Tanggal, row.Jam, row.Status]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 45, 45] },
+    });
+    doc.save(`rekap-absensi-${attDate}.pdf`);
   };
 
   const inputCls = "w-full bg-[#0A0A0A] border border-white/10 px-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors text-sm";
@@ -996,12 +1043,26 @@ export default function TeacherDashboard() {
                   <p className="text-sm uppercase tracking-widest text-white/40">Feed Realtime</p>
                   <p className="text-white font-bold">Nama, kelas, jam, dan status akan muncul saat siswa melakukan absensi.</p>
                 </div>
-                <button
-                  onClick={loadAttendanceData}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" /> Muat Ulang
-                </button>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <button
+                    onClick={downloadAttendanceExcel}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-green-600/20 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" /> Excel
+                  </button>
+                  <button
+                    onClick={downloadAttendancePDF}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#FF2D2D]/20 text-[#FF2D2D] text-xs font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-colors"
+                  >
+                    <FileText className="w-4 h-4" /> PDF
+                  </button>
+                  <button
+                    onClick={loadAttendanceData}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Muat Ulang
+                  </button>
+                </div>
               </div>
               {attendanceFeed.length === 0 ? (
                 <div className="p-12 text-center text-white/40">
@@ -1034,9 +1095,10 @@ export default function TeacherDashboard() {
                               day: "numeric",
                               month: "long",
                               year: "numeric",
+                              timeZone: "Asia/Jakarta",
                             })}
                           </td>
-                          <td className="px-5 py-4 text-white/70">{new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
+                          <td className="px-5 py-4 text-white/70">{new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Jakarta" })}</td>
                           <td className="px-5 py-4">
                             <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${row.status === "present" ? "bg-green-500/20 text-green-300" : row.status === "late" ? "bg-yellow-500/20 text-yellow-300" : row.status === "sick" ? "bg-blue-500/20 text-blue-300" : row.status === "permission" ? "bg-purple-500/20 text-purple-300" : "bg-[#FF2D2D]/20 text-[#FF2D2D]"}`}>
                               {row.status}

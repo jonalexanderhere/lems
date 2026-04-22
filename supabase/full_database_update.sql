@@ -77,6 +77,14 @@ create table if not exists lesson_progress (
   unique(student_id, lesson_id)
 );
 
+create table if not exists course_progress (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references profiles(id) on delete cascade,
+  course_id uuid references courses(id) on delete cascade,
+  completed_at timestamptz default now(),
+  unique(student_id, course_id)
+);
+
 -- =====================
 -- 3. Attendance sessions + records + logs
 -- =====================
@@ -138,10 +146,14 @@ alter table if exists attendance_logs enable row level security;
 alter table if exists quizzes enable row level security;
 alter table if exists quiz_questions enable row level security;
 alter table if exists quiz_attempts enable row level security;
+alter table if exists course_progress enable row level security;
 alter table if exists modules enable row level security;
 alter table if exists lessons enable row level security;
 alter table if exists lesson_progress enable row level security;
 alter table if exists activity_logs enable row level security;
+
+alter table if exists quiz_attempts
+  add column if not exists max_score int default 0;
 
 drop policy if exists "Public read classes" on classes;
 drop policy if exists "Public read academic_years" on academic_years;
@@ -173,6 +185,9 @@ drop policy if exists "Students read quiz questions" on quiz_questions;
 drop policy if exists "Teachers manage quiz questions" on quiz_questions;
 drop policy if exists "Students manage own attempts" on quiz_attempts;
 drop policy if exists "Teachers view all attempts" on quiz_attempts;
+drop policy if exists "Student own course progress" on course_progress;
+drop policy if exists "Student manage own course progress" on course_progress;
+drop policy if exists "Teacher read all course progress" on course_progress;
 drop policy if exists "Public read modules" on modules;
 drop policy if exists "Teacher manage modules" on modules;
 drop policy if exists "Public read lessons" on lessons;
@@ -266,6 +281,12 @@ create policy "Teachers manage quiz questions" on quiz_questions for all using (
 
 create policy "Students manage own attempts" on quiz_attempts for all using (auth.uid() = student_id);
 create policy "Teachers view all attempts" on quiz_attempts for select using (
+  exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
+);
+
+create policy "Student own course progress" on course_progress for select using (auth.uid() = student_id);
+create policy "Student manage own course progress" on course_progress for all using (auth.uid() = student_id);
+create policy "Teacher read all course progress" on course_progress for select using (
   exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin'))
 );
 

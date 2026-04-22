@@ -3,13 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
-import { ArrowLeft, ChevronRight, Loader2, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronRight, FileSpreadsheet, FileText, Loader2, Trophy } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type AttemptRow = {
   id: string;
   score: number | null;
+  max_score: number | null;
   total_questions: number | null;
   correct_answers: number | null;
   submitted_at: string | null;
@@ -36,7 +40,7 @@ export default function QuizResultsPage() {
 
       const { data: att } = await supabase
         .from("quiz_attempts")
-        .select("id, score, total_questions, correct_answers, submitted_at, started_at, profiles(full_name, username)")
+        .select("id, score, max_score, total_questions, correct_answers, submitted_at, started_at, profiles(full_name, username)")
         .eq("quiz_id", quizId)
         .order("score", { ascending: false });
 
@@ -48,11 +52,66 @@ export default function QuizResultsPage() {
 
   const stats = useMemo(() => {
     const completed = attempts.filter((a) => a.score !== null);
-    const scores = completed.map((a) => a.score ?? 0);
-    const avg = scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0;
-    const passed = scores.filter((s) => s >= 70).length;
+    const percentages = completed.map((a) => {
+      const score = a.score ?? 0;
+      const maxScore = a.max_score ?? 0;
+      return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    });
+    const avg = percentages.length ? Math.round(percentages.reduce((s, v) => s + v, 0) / percentages.length) : 0;
+    const passed = percentages.filter((s) => s >= 70).length;
     return { total: attempts.length, completed: completed.length, avg, passed, passRate: completed.length ? Math.round((passed / completed.length) * 100) : 0 };
   }, [attempts]);
+
+  const exportRows = attempts.map((att) => {
+    const name = att.profiles?.full_name ?? att.profiles?.username ?? "Tidak Dikenal";
+    const score = att.score ?? 0;
+    const maxScore = att.max_score ?? 0;
+    const percent = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    return {
+      Nama: name,
+      Skor: att.score ?? "",
+      Maksimum: maxScore || "",
+      Persentase: `${percent}%`,
+      Benar: att.correct_answers ?? "",
+      Total_Soal: att.total_questions ?? "",
+      Status: att.score == null ? "Belum selesai" : percent >= 70 ? "Lulus" : "Belum lulus",
+      Dikerjakan: att.submitted_at
+        ? new Date(att.submitted_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" })
+        : new Date(att.started_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }),
+    };
+  });
+
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Nilai");
+    XLSX.writeFile(workbook, `rekap-nilai-${quizTitle.replace(/\s+/g, "-").toLowerCase()}.xlsx`);
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(16);
+    doc.text(`Rekap Nilai - ${quizTitle}`, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Total peserta: ${stats.total} | Rata-rata: ${stats.avg}% | Lulus: ${stats.passRate}%`, 14, 24);
+    autoTable(doc, {
+      startY: 30,
+      head: [["Nama", "Skor", "Maks", "%", "Benar", "Total", "Status", "Dikerjakan"]],
+      body: exportRows.map((row) => [
+        row.Nama,
+        row.Skor === "" ? "-" : String(row.Skor),
+        row.Maksimum === "" ? "-" : String(row.Maksimum),
+        row.Persentase,
+        row.Benar === "" ? "-" : String(row.Benar),
+        row.Total_Soal === "" ? "-" : String(row.Total_Soal),
+        row.Status,
+        row.Dikerjakan,
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 45, 45] },
+    });
+    doc.save(`rekap-nilai-${quizTitle.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  };
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -74,9 +133,17 @@ export default function QuizResultsPage() {
                 {quizTitle}
               </h1>
             </div>
-            <Link href={`/dashboard/teacher/quiz/${quizId}`} className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white text-sm hover:bg-white/20 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Kembali
-            </Link>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-500/30 transition-colors text-sm">
+                <FileSpreadsheet className="w-4 h-4" /> Excel
+              </button>
+              <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-[#FF2D2D]/20 text-[#FF2D2D] hover:bg-[#FF2D2D] hover:text-white border border-[#FF2D2D]/30 transition-colors text-sm">
+                <FileText className="w-4 h-4" /> PDF
+              </button>
+              <Link href={`/dashboard/teacher/quiz/${quizId}`} className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white text-sm hover:bg-white/20 transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Kembali
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -91,7 +158,7 @@ export default function QuizResultsPage() {
               {[
                 { label: "Total Peserta", value: stats.total },
                 { label: "Selesai", value: stats.completed },
-                { label: "Rata-rata Nilai", value: stats.avg },
+                { label: "Rata-rata %", value: stats.avg },
                 { label: "Tingkat Lulus", value: `${stats.passRate}%` },
               ].map((s) => (
                 <div key={s.label} className="p-5 bg-white/5 border border-white/10 text-center">
@@ -114,7 +181,9 @@ export default function QuizResultsPage() {
                     <tr>
                       <th className="px-5 py-4">#</th>
                       <th className="px-5 py-4">Siswa</th>
-                      <th className="px-5 py-4">Nilai</th>
+                      <th className="px-5 py-4">Skor</th>
+                      <th className="px-5 py-4">Maks</th>
+                      <th className="px-5 py-4">%</th>
                       <th className="px-5 py-4">Benar</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Dikerjakan</th>
@@ -125,7 +194,10 @@ export default function QuizResultsPage() {
                       const name = (att.profiles as { full_name: string | null; username: string | null } | null)?.full_name
                         ?? (att.profiles as { full_name: string | null; username: string | null } | null)?.username
                         ?? "Tidak Dikenal";
-                      const passed = (att.score ?? 0) >= 70;
+                      const maxScore = att.max_score ?? 0;
+                      const score = att.score ?? 0;
+                      const percent = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                      const passed = percent >= 70;
                       return (
                         <tr key={att.id} className="hover:bg-white/[0.02]">
                           <td className="px-5 py-4 text-white/30 font-mono text-xs">{idx + 1}</td>
@@ -135,6 +207,8 @@ export default function QuizResultsPage() {
                               {att.score ?? "—"}
                             </span>
                           </td>
+                          <td className="px-5 py-4 text-white/60">{maxScore || "—"}</td>
+                          <td className="px-5 py-4 text-white/60">{att.score === null ? "—" : `${percent}%`}</td>
                           <td className="px-5 py-4 text-white/60">
                             {att.correct_answers ?? "—"}/{att.total_questions ?? "—"}
                           </td>

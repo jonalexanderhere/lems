@@ -389,6 +389,7 @@ create table if not exists quiz_attempts (
   student_id uuid references profiles(id) on delete cascade,
   answers jsonb default '{}'::jsonb,  -- { question_id: 'a'|'b'|'c'|'d' }
   score int,
+  max_score int default 0,
   total_questions int,
   correct_answers int,
   started_at timestamptz default now(),
@@ -477,6 +478,14 @@ create table if not exists lesson_progress (
   unique(student_id, lesson_id)
 );
 
+create table if not exists course_progress (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references profiles(id) on delete cascade,
+  course_id uuid references courses(id) on delete cascade,
+  completed_at timestamptz default now(),
+  unique(student_id, course_id)
+);
+
 create table if not exists attendance_records (
   id uuid primary key default gen_random_uuid(),
   student_id uuid references profiles(id) on delete cascade,
@@ -491,6 +500,7 @@ create table if not exists attendance_records (
 alter table modules enable row level security;
 alter table lessons enable row level security;
 alter table lesson_progress enable row level security;
+alter table course_progress enable row level security;
 alter table attendance_records enable row level security;
 
 create policy "Public read modules" on modules for select using (true);
@@ -502,6 +512,10 @@ create policy "Teacher manage lessons" on lessons for all using (exists (select 
 create policy "Student own progress" on lesson_progress for select using (auth.uid() = student_id);
 create policy "Student manage own progress" on lesson_progress for all using (auth.uid() = student_id);
 create policy "Teacher read all progress" on lesson_progress for select using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
+
+create policy "Student own course progress" on course_progress for select using (auth.uid() = student_id);
+create policy "Student manage own course progress" on course_progress for all using (auth.uid() = student_id);
+create policy "Teacher read all course progress" on course_progress for select using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
 
 create policy "Student read own attendance" on attendance_records for select using (auth.uid() = student_id);
 create policy "Teacher manage attendance" on attendance_records for all using (exists (select 1 from profiles where id = auth.uid() and role in ('teacher','admin')));
