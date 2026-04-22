@@ -39,7 +39,7 @@ export async function GET() {
     admin.auth.admin.listUsers({ perPage: 200 }),
     admin
       .from("profiles")
-      .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(name)")
+      .select("id, full_name, username, role, xp, avatar_url, class_id, classes(name)")
       .eq("role", "student")
       .order("created_at", { ascending: false }),
   ]);
@@ -55,7 +55,7 @@ export async function GET() {
       role: resolveRole(row.role, authUser),
       xp: row.xp ?? 0,
       avatar_url: row.avatar_url ?? null,
-      badges: Array.isArray(row.badges) ? row.badges : [],
+      badges: [],
       class_id: row.class_id,
       class_name: classEntry?.name ?? null,
     };

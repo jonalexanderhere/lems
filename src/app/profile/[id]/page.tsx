@@ -19,13 +19,13 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp, avatar_url, role, badges, classes(name)")
+    .select("id, username, full_name, xp, avatar_url, role, classes(name)")
     .eq("id", id)
     .maybeSingle();
 
   if (!profile) notFound();
 
-  const badges = deriveBadges({ xp: profile.xp ?? 0, badges: Array.isArray(profile.badges) ? profile.badges : [] });
+  const badges = deriveBadges({ xp: profile.xp ?? 0, badges: [] });
   const xpRank = getXpRank(profile.xp ?? 0);
   const xpProgress = getXpProgress(profile.xp ?? 0);
   const displayName = profile.username ?? profile.full_name ?? "Anonymous";

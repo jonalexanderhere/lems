@@ -17,7 +17,6 @@ type Profile = {
   role: string;
   xp: number | null;
   avatar_url: string | null;
-  badges: string[] | null;
   class_id: string | null;
   classes: ClassInfo | null;
 };
@@ -49,7 +48,7 @@ export default function DashboardPage() {
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(id, name, grade, section)")
+        .select("id, full_name, username, role, xp, avatar_url, class_id, classes(id, name, grade, section)")
         .eq("id", user.id)
         .single();
 
@@ -69,7 +68,7 @@ export default function DashboardPage() {
         if (!repairError) {
           const { data: repaired } = await supabase
             .from("profiles")
-            .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(id, name, grade, section)")
+            .select("id, full_name, username, role, xp, avatar_url, class_id, classes(id, name, grade, section)")
             .eq("id", user.id)
             .single();
           if (repaired) profileRow = repaired;

@@ -21,7 +21,7 @@ export default async function LeaderboardPage() {
   const supabase = createAdminClient();
   const { data: leaders } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp, avatar_url, badges, class_id, role")
+    .select("id, username, full_name, xp, avatar_url, class_id, role")
     .order("xp", { ascending: false })
     .limit(10000);
 
@@ -84,7 +84,7 @@ export default async function LeaderboardPage() {
                 const leaderboardRank = getLeaderboardRank(rank);
                 const xpRank = getXpRank(user.xp);
                 const xpProgress = getXpProgress(user.xp);
-                const badges = deriveBadges({ xp: user.xp, badges: Array.isArray(user.badges) ? user.badges : [] });
+                const badges = deriveBadges({ xp: user.xp, badges: [] });
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
                 const className = user.class_id ? classMap.get(user.class_id) ?? "-" : "-";

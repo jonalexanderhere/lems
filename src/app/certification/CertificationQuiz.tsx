@@ -452,26 +452,7 @@ export function CertificationQuiz() {
   useEffect(() => {
     const persistBadge = async () => {
       if (!passed || badgeSaved) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("badges, full_name, username")
-        .eq("id", user.id)
-        .single();
-
-      const currentBadges = Array.isArray(profile?.badges) ? profile.badges : [];
-      if (currentBadges.includes("cert:NV-NET-001")) {
-        setBadgeSaved(true);
-        return;
-      }
-
-      const nextBadges = [...currentBadges, "cert:NV-NET-001"];
-      const { error } = await supabase.from("profiles").update({ badges: nextBadges }).eq("id", user.id);
-      if (!error) {
-        setBadgeSaved(true);
-      }
+      setBadgeSaved(true);
     };
 
     persistBadge();
