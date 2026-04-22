@@ -10,8 +10,10 @@ import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { TrustBadges } from "@/components/TrustBadges";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { normalizeXp } from "@/utils/rank";
+import { connection } from "next/server";
 
 export default async function Home() {
+  await connection();
   const supabase = createAdminClient();
 
   // Fetch real leaderboard (top 5 by XP)

@@ -7,6 +7,7 @@ import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, nor
 import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
+import { connection } from "next/server";
 
 export const metadata = {
   title: "Leaderboard | Netvora Academy",
@@ -16,6 +17,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
+  await connection();
   const supabase = createAdminClient();
   const { data: leaders } = await supabase
     .from("profiles")
