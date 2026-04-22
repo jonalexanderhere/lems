@@ -3,6 +3,7 @@ import { Navigation } from "@/components/Navigation";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Circle, PlayCircle } from "lucide-react";
+import { awardXp } from "@/utils/xp";
 
 export default async function LearnLessonPage({ params }: { params: Promise<{ id: string; lesson_id: string }> }) {
   const { id: courseId, lesson_id: lessonId } = await params;
@@ -36,13 +37,26 @@ export default async function LearnLessonPage({ params }: { params: Promise<{ id
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
+    const { data: existing } = await supabase
+      .from("lesson_progress")
+      .select("completed")
+      .eq("student_id", user.id)
+      .eq("lesson_id", lessonId)
+      .maybeSingle();
+
+    const wasCompleted = existing?.completed ?? false;
+
     await supabase.from("lesson_progress").upsert({
       student_id: user.id,
       lesson_id: lessonId,
       completed: true,
       completed_at: new Date().toISOString()
     });
+
+    if (!wasCompleted) {
+      await awardXp(supabase, user.id, 10);
+    }
   };
 
   const courseTitle = lesson.modules?.courses?.title ?? "Course";

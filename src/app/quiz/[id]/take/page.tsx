@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { ArrowLeft, CheckCircle2, Clock, Loader2, PlayCircle, Save } from "lucide-react";
+import { awardXp } from "@/utils/xp";
 
 type QuizInfo = {
   id: string;
@@ -164,6 +165,7 @@ export default function QuizTakePage() {
     if (!quiz || !profile) return;
     setSubmitting(true);
     setError("");
+    const hadSubmittedBefore = Boolean(attempt?.submitted_at);
 
     const totalPoints = questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
     const correctPoints = questions.reduce((sum, q) => {
@@ -201,6 +203,12 @@ export default function QuizTakePage() {
 
     setAttempt(data as AttemptRow);
     setFinished(true);
+
+    if (!hadSubmittedBefore) {
+      const awarded = 20 + Math.round(score / 5);
+      await awardXp(supabase, profile.id, awarded);
+    }
+
     setSubmitting(false);
   };
 

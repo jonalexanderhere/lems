@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { awardXp } from "@/utils/xp";
 
 type GradeSubmissionBody = {
   submission_id?: string;
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: submission, error: fetchError } = await admin
     .from("submissions")
-    .select("id, assignment_id, assignments(teacher_id)")
+    .select("id, assignment_id, student_id, score, assignments(teacher_id)")
     .eq("id", body.submission_id)
     .single();
 
@@ -69,6 +70,11 @@ export async function POST(req: Request) {
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 400 });
+  }
+
+  const hadScoreBefore = submission.score != null;
+  if (!hadScoreBefore && body.score != null && submission.student_id) {
+    await awardXp(admin, submission.student_id, 10 + Math.round(body.score / 10));
   }
 
   return NextResponse.json({ ok: true, submission: updated });

@@ -6,6 +6,7 @@ import { Navigation } from "@/components/Navigation";
 import { Upload, FileText, CheckCircle2, Clock, Loader2, Download } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { awardXp } from "@/utils/xp";
 
 type Assignment = {
   id: string;
@@ -73,6 +74,7 @@ export default function AssignmentPage() {
     if (!file) { setError("Please masukkan link tugas."); return; }
     setUploading(true);
     setError("");
+    const hadScoreBefore = submission?.score != null;
 
     // The 'file' object is a mock file containing the URL as its name
     const submittedUrl = file.name;
@@ -130,6 +132,11 @@ export default function AssignmentPage() {
               }
             : prev
         );
+
+        if (!hadScoreBefore) {
+          const awarded = 10 + Math.round(score / 10);
+          await awardXp(supabase, userId, awarded);
+        }
       }
     }
 
