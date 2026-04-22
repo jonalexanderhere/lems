@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
@@ -18,6 +18,7 @@ type StudentAccount = {
   email: string | null;
   full_name: string | null;
   username: string | null;
+  xp: number;
   class_name: string | null;
   class_id: string | null;
 };
@@ -27,6 +28,9 @@ type RegisteredAccount = StudentAccount & {
 };
 type ReportSubmission = {
   id: string;
+  file_url: string;
+  file_name: string;
+  note: string | null;
   score: number | null;
   feedback: string | null;
   submitted_at: string;
@@ -57,6 +61,16 @@ function firstItem<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+function suggestNextClassId(currentClassId: string | null, classList: ClassRow[]) {
+  if (!currentClassId) return "";
+  const currentClass = classList.find((item) => item.id === currentClassId);
+  if (!currentClass) return currentClassId;
+  const nextGrade = GRADE_NEXT[currentClass.grade];
+  if (!nextGrade) return currentClassId;
+  const nextClass = classList.find((item) => item.grade === nextGrade && item.section === currentClass.section);
+  return nextClass?.id ?? currentClassId;
+}
+
 export default function TeacherDashboard() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -80,6 +94,7 @@ export default function TeacherDashboard() {
   const [resetMessage, setResetMessage] = useState("");
   const [promotingStudentId, setPromotingStudentId] = useState("");
   const [promoteMessage, setPromoteMessage] = useState("");
+  const activeXpAccounts = useMemo(() => accounts.filter((account) => (account.xp ?? 0) > 0).length, [accounts]);
 
   // Course form
   const [courseForm, setCourseForm] = useState({ title: "", description: "", category: "Networking", level: "Beginner", duration_hours: 0, class_id: "" });
@@ -129,10 +144,13 @@ export default function TeacherDashboard() {
       }
       const { data: s } = await supabase
         .from("submissions")
-        .select("id, score, feedback, submitted_at, graded_at, assignments(title, class_id, classes(name)), profiles(full_name, username)")
+        .select("id, file_url, file_name, note, score, feedback, submitted_at, graded_at, assignments(title, class_id, classes(name)), profiles(full_name, username)")
         .order("submitted_at", { ascending: false });
       const normalized = (s ?? []).map((row: {
         id: string;
+        file_url: string;
+        file_name: string;
+        note: string | null;
         score: number | null;
         feedback: string | null;
         submitted_at: string;
@@ -141,6 +159,9 @@ export default function TeacherDashboard() {
         profiles?: Array<{ full_name: string | null; username: string | null }> | { full_name: string | null; username: string | null } | null;
       }) => ({
         id: row.id,
+        file_url: row.file_url,
+        file_name: row.file_name,
+        note: row.note,
         score: row.score,
         feedback: row.feedback,
         submitted_at: row.submitted_at,
@@ -176,16 +197,6 @@ export default function TeacherDashboard() {
     setGradingSubmissionId(row.id);
     setGradingScore(row.score == null ? "" : String(row.score));
     setGradingFeedback(row.feedback ?? "");
-  };
-
-  const suggestNextClassId = (currentClassId: string | null, classList: ClassRow[]) => {
-    if (!currentClassId) return "";
-    const currentClass = classList.find((item) => item.id === currentClassId);
-    if (!currentClass) return currentClassId;
-    const nextGrade = GRADE_NEXT[currentClass.grade];
-    if (!nextGrade) return currentClassId;
-    const nextClass = classList.find((item) => item.grade === nextGrade && item.section === currentClass.section);
-    return nextClass?.id ?? currentClassId;
   };
 
   const handlePromoteStudent = async (studentId: string) => {
@@ -363,7 +374,7 @@ export default function TeacherDashboard() {
     setResettingEmail("");
   };
 
-  const loadAttendanceData = async () => {
+  const loadAttendanceData = useCallback(async () => {
     if (tab !== "attendance" || !attDate) return;
 
     const start = `${attDate}T00:00:00`;
@@ -417,12 +428,14 @@ export default function TeacherDashboard() {
 
     setAttRecords(mapping);
     setAttendanceFeed(feed as AttendanceFeedRow[]);
-  };
+  }, [attClassId, attDate, supabase, tab]);
 
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
 
-    void loadAttendanceData();
+    const timeout = window.setTimeout(() => {
+      void loadAttendanceData();
+    }, 0);
 
     const channel = supabase
       .channel("attendance_updates")
@@ -463,9 +476,10 @@ export default function TeacherDashboard() {
       .subscribe();
 
     return () => {
+      window.clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
-  }, [attClassId, attDate, classes, students, supabase, tab]);
+  }, [attClassId, attDate, classes, loadAttendanceData, students, supabase, tab]);
 
   const handleSaveAttendance = async () => {
     setAttSaving(true);
@@ -550,6 +564,7 @@ export default function TeacherDashboard() {
     Username: row.profiles?.username ?? "-",
     Kelas: row.assignments?.classes?.name ?? "Unknown",
     Tugas: row.assignments?.title ?? "-",
+    Link: row.file_url ?? "",
     Nilai: row.score ?? "",
     Status: row.score == null ? "Belum dinilai" : row.score >= 80 ? "Lulus" : "Belum lulus",
     Dikirim: row.submitted_at ? new Date(row.submitted_at).toLocaleString("id-ID") : "-",
@@ -889,7 +904,7 @@ export default function TeacherDashboard() {
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Akun Terdaftar</h2>
                 <p className="text-white/40 text-sm mt-2">Semua akun yang sudah mendaftar atau dibuat di sistem.</p>
               </div>
-              <div className="text-white/40 text-sm">{accounts.length} akun</div>
+              <div className="text-white/40 text-sm">{accounts.length} akun · {activeXpAccounts} akun sudah punya XP</div>
             </div>
 
             <div className="overflow-x-auto border border-white/10">
@@ -900,6 +915,7 @@ export default function TeacherDashboard() {
                     <th className="px-6 py-4 text-white">Username</th>
                     <th className="px-6 py-4 text-white">Email</th>
                     <th className="px-6 py-4 text-white">Role</th>
+                    <th className="px-6 py-4 text-white">XP</th>
                     <th className="px-6 py-4 text-white">Kelas</th>
                     <th className="px-6 py-4 text-white">Dibuat</th>
                   </tr>
@@ -907,7 +923,7 @@ export default function TeacherDashboard() {
                 <tbody className="divide-y divide-white/5">
                   {accounts.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-white/20 italic">
+                      <td colSpan={7} className="px-6 py-12 text-center text-white/20 italic">
                         Belum ada akun terdaftar ditemukan.
                       </td>
                     </tr>
@@ -923,6 +939,11 @@ export default function TeacherDashboard() {
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-white/10 text-white/60 text-[10px] font-bold uppercase tracking-widest rounded-full">
                             {account.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${(account.xp ?? 0) > 0 ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white/50"}`}>
+                            {(account.xp ?? 0).toLocaleString("id-ID")}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-white/70">{account.class_name ?? "-"}</td>
@@ -1015,6 +1036,31 @@ export default function TeacherDashboard() {
                   </div>
                 </div>
 
+                <div className="p-4 bg-black/30 border border-white/10">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/40 mb-2">Link Submission</p>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-white truncate">{gradingRow.file_name}</p>
+                      <p className="text-white/35 text-xs break-all">{gradingRow.file_url}</p>
+                    </div>
+                    {gradingRow.file_url && (
+                      <a
+                        href={gradingRow.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors shrink-0"
+                      >
+                        Buka Link
+                      </a>
+                    )}
+                  </div>
+                  {gradingRow.note && (
+                    <p className="mt-3 text-sm text-white/60 whitespace-pre-wrap">
+                      Catatan murid: {gradingRow.note}
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleSaveGrade}
@@ -1054,6 +1100,7 @@ export default function TeacherDashboard() {
                         <th className="px-5 py-4">Siswa</th>
                         <th className="px-5 py-4">Kelas</th>
                         <th className="px-5 py-4">Tugas</th>
+                        <th className="px-5 py-4">Link</th>
                         <th className="px-5 py-4">Nilai</th>
                         <th className="px-5 py-4">Status</th>
                         <th className="px-5 py-4">Dikirim</th>
@@ -1069,6 +1116,20 @@ export default function TeacherDashboard() {
                           </td>
                           <td className="px-5 py-4 text-white/70">{row.assignments?.classes?.name ?? "-"}</td>
                           <td className="px-5 py-4 text-white/70">{row.assignments?.title ?? "-"}</td>
+                          <td className="px-5 py-4">
+                            {row.file_url ? (
+                              <a
+                                href={row.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-3 py-2 bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+                              >
+                                Buka
+                              </a>
+                            ) : (
+                              <span className="text-white/30 text-xs">-</span>
+                            )}
+                          </td>
                           <td className="px-5 py-4 font-bold text-white">{row.score ?? "-"}</td>
                           <td className="px-5 py-4">
                             <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${row.score == null ? "bg-white/10 text-white/50" : row.score >= 80 ? "bg-green-500/20 text-green-300" : "bg-[#FF2D2D]/20 text-[#FF2D2D]"}`}>

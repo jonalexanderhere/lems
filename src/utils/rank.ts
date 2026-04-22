@@ -53,6 +53,10 @@ export function getXpRank(xp: number): XpRank {
   return XP_TIERS.find((tier) => xp >= tier.minXp) ?? XP_TIERS[XP_TIERS.length - 1];
 }
 
+export function normalizeXp(xp: number | null | undefined) {
+  return typeof xp === "number" && Number.isFinite(xp) ? xp : 0;
+}
+
 export function getXpProgress(xp: number): XpProgress {
   const current = getXpRank(xp);
   const currentIndex = XP_TIERS.findIndex((tier) => tier.label === current.label);

@@ -3,7 +3,7 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
-import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
+import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, normalizeXp, xpRankClass } from "@/utils/rank";
 import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
@@ -21,9 +21,12 @@ export default async function LeaderboardPage() {
     .from("profiles")
     .select("id, username, full_name, xp, avatar_url, badges, class_id, role")
     .order("xp", { ascending: false })
-    .limit(20);
+    .limit(10000);
 
-  const rankedLeaders = (leaders ?? []).filter((leader) => leader.role !== "teacher" && leader.role !== "admin");
+  const rankedLeaders = (leaders ?? [])
+    .filter((leader) => leader.role !== "teacher" && leader.role !== "admin")
+    .map((leader) => ({ ...leader, xp: normalizeXp(leader.xp) }))
+    .sort((a, b) => b.xp - a.xp);
 
   const classIds = [...new Set(rankedLeaders.map((leader) => leader.class_id).filter((value): value is string => Boolean(value)))];
   const classMap = new Map<string, string>();
