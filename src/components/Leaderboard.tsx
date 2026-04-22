@@ -10,6 +10,7 @@ import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpR
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
 import { BadgeMark } from "@/components/BadgeMark";
+import { LeaderboardSpotlight } from "@/components/LeaderboardSpotlight";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -70,6 +71,8 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
             <span className="text-white/40">This Month</span>
           </h2>
         </div>
+
+          <LeaderboardSpotlight leaders={leaders} />
 
           {leaders.length === 0 ? (
             <div className="text-center text-white/30 border border-dashed border-white/10 p-16">

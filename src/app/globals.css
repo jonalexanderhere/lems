@@ -29,6 +29,55 @@ html {
   font-size: 15px;
 }
 
+@keyframes leaderboardFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes leaderboardShine {
+  0% {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    filter: saturate(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: saturate(1.2);
+    transform: scale(1.02);
+  }
+}
+
+.animate-leaderboard-float {
+  animation: leaderboardFloat 6s ease-in-out infinite;
+}
+
+.animate-leaderboard-shine {
+  animation: leaderboardShine 3.2s linear infinite;
+}
+
+.animate-badge-pulse {
+  animation: badgePulse 2.8s ease-in-out infinite;
+}
+
 /* Base styles for Lenis */
 html.lenis {
   height: auto;

@@ -6,6 +6,7 @@ import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpR
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
 import { BadgeMark } from "@/components/BadgeMark";
+import { LeaderboardSpotlight } from "@/components/LeaderboardSpotlight";
 
 type Leader = {
   id: string;
@@ -40,6 +41,8 @@ export function LiveLeaderboard({ leaders }: { leaders: Leader[] }) {
             </h2>
           </div>
 
+          <LeaderboardSpotlight leaders={leaders} />
+
           {leaders.length === 0 ? (
             <div className="text-center text-white/30 border border-dashed border-white/10 p-16 bg-white/[0.02]">
               <Trophy className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -47,7 +50,7 @@ export function LiveLeaderboard({ leaders }: { leaders: Leader[] }) {
               <p className="text-sm mt-2">Jadilah yang pertama mendapatkan XP!</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 md:p-4">
               {leaders.map((user, i) => {
                 const rank = i + 1;
                 const leaderboardRank = getLeaderboardRank(rank);

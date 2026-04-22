@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
 import { BadgeMark } from "@/components/BadgeMark";
+import { LeaderboardSpotlight } from "@/components/LeaderboardSpotlight";
 import { connection } from "next/server";
 
 export const metadata = {
@@ -72,6 +73,7 @@ export default async function LeaderboardPage() {
 
       <section className="py-16 px-6 md:px-12">
         <div className="container mx-auto max-w-5xl">
+          <LeaderboardSpotlight leaders={rankedLeaders} />
           {!rankedLeaders || rankedLeaders.length === 0 ? (
             <div className="text-center text-white/30 border border-dashed border-white/10 p-24 bg-white/[0.02]">
               <Trophy className="w-16 h-16 mx-auto mb-6 opacity-20" />
@@ -79,7 +81,7 @@ export default async function LeaderboardPage() {
               <p className="text-sm">Daftar dan mulai belajar untuk masuk leaderboard!</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 md:p-4">
               {rankedLeaders.map((user, i) => {
                 const rank = i + 1;
                 const leaderboardRank = getLeaderboardRank(rank);
