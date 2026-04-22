@@ -7,7 +7,7 @@ export type BadgeInput = {
 export type BadgeChip = {
   key: string;
   label: string;
-  tone: "gold" | "silver" | "bronze" | "accent" | "emerald" | "violet" | "slate";
+  tone: "gold" | "silver" | "bronze" | "accent" | "emerald" | "violet" | "slate" | "special";
 };
 
 const PRESET_BADGES: Record<string, BadgeChip> = {
@@ -15,6 +15,7 @@ const PRESET_BADGES: Record<string, BadgeChip> = {
   "cert:NV-SEC-001": { key: "cert:NV-SEC-001", label: "Security Certified", tone: "violet" },
   "cert:NV-SYS-001": { key: "cert:NV-SYS-001", label: "SysAdmin Certified", tone: "emerald" },
   "cert:NV-ADV-001": { key: "cert:NV-ADV-001", label: "Infra Architect", tone: "gold" },
+  "special:pioneer": { key: "special:pioneer", label: "Pioneer", tone: "special" },
   "rank:top-1": { key: "rank:top-1", label: "Top 1", tone: "gold" },
   "rank:top-2": { key: "rank:top-2", label: "Top 2", tone: "silver" },
   "rank:top-3": { key: "rank:top-3", label: "Top 3", tone: "bronze" },
@@ -36,6 +37,7 @@ export function deriveBadges(input: BadgeInput): BadgeChip[] {
   normalized.forEach((badge) => add(PRESET_BADGES[badge]));
 
   const xp = input.xp ?? 0;
+  if (xp >= 50) add(PRESET_BADGES["special:pioneer"]);
   if (xp >= 1000) add(PRESET_BADGES["xp:1000"]);
   if (xp >= 500) add(PRESET_BADGES["xp:500"]);
 
@@ -63,6 +65,8 @@ export function badgeToneClass(tone: BadgeChip["tone"]) {
       return "bg-violet-500/10 text-violet-300 border-violet-400/20";
     case "slate":
       return "bg-white/10 text-white/70 border-white/10";
+    case "special":
+      return "bg-gradient-to-r from-cyan-400/15 via-white/10 to-[#FF2D2D]/15 text-cyan-100 border-cyan-300/30 shadow-[0_0_18px_rgba(34,211,238,0.15)]";
     default:
       return "bg-[#FF2D2D]/10 text-[#FF2D2D] border-[#FF2D2D]/30";
   }
