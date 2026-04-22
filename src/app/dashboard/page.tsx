@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, ClipboardList, Zap, Camera, Users, ChevronRight } from "lucide-react";
+import { BookOpen, ClipboardList, Loader2, Zap, Camera, Users, ChevronRight } from "lucide-react";
 
 type ClassInfo = { name: string; grade: string; section: string };
 type Profile = {
@@ -28,7 +28,7 @@ type AttemptRow = { quiz_id: string };
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [attempts, setAttempts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -87,9 +88,25 @@ export default function DashboardPage() {
   const handleJoinClass = async (classId: string) => {
     if (!profile?.id) return;
     setJoining(true);
-    const { error } = await supabase.from("profiles").update({ class_id: classId }).eq("id", profile.id);
-    if (!error) window.location.reload();
-    else { alert("Gagal bergabung: " + error.message); setJoining(false); }
+    setJoinError("");
+
+    try {
+      const chosenClass = classes.find((item) => item.id === classId) ?? null;
+      const { error } = await supabase.from("profiles").update({ class_id: classId }).eq("id", profile.id);
+
+      if (error) {
+        setJoinError(`Gagal bergabung ke kelas ini: ${error.message}`);
+        return;
+      }
+
+      setProfile((prev) => prev ? { ...prev, class_id: classId, classes: chosenClass } : prev);
+      router.refresh();
+    } catch (error) {
+      console.error("Join class error:", error);
+      setJoinError("Gagal memproses pilihan kelas. Coba lagi beberapa saat.");
+    } finally {
+      setJoining(false);
+    }
   };
 
   if (loading) return (
@@ -140,15 +157,25 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Pilih Kelasmu</h2>
             </div>
             <p className="text-white/60 text-sm mb-6 max-w-xl">Kamu belum terdaftar di kelas manapun. Silakan pilih kelasmu di bawah ini untuk melihat tugas, ujian, dan materi yang relevan.</p>
+            {joinError && (
+              <div className="mb-4 p-4 bg-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#FF2D2D] text-sm">
+                {joinError}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {classes.map((cl) => (
                 <button
                   key={cl.id}
+                  type="button"
                   disabled={joining}
                   onClick={() => handleJoinClass(cl.id)}
-                  className="p-4 bg-white/5 border border-white/10 hover:border-accent hover:bg-accent/10 text-left transition-all group"
+                  aria-busy={joining}
+                  className="p-4 bg-white/5 border border-white/10 hover:border-accent hover:bg-accent/10 text-left transition-all group cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  <p className="text-white font-bold group-hover:text-accent transition-colors">{cl.name}</p>
+                  <p className="text-white font-bold group-hover:text-accent transition-colors flex items-center justify-between gap-3">
+                    <span>{cl.name}</span>
+                    {joining ? <Loader2 className="w-4 h-4 animate-spin text-accent shrink-0" /> : null}
+                  </p>
                   <p className="text-white/30 text-[10px] uppercase tracking-widest mt-1">{cl.grade} - {cl.section}</p>
                 </button>
               ))}
