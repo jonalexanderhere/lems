@@ -7,6 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
 import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
 import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
+import { RankEmblem } from "@/components/RankEmblem";
 
 type ClassInfo = { id: string; name: string; grade: string; section: string };
 type Profile = {
@@ -140,6 +141,12 @@ export default function DashboardPage() {
   const xpValue = profile?.xp ?? 0;
   const xpRank = getXpRank(xpValue);
   const xpProgress = getXpProgress(xpValue);
+  const nextTargetLabel = xpProgress.nextLabel && xpProgress.nextMinXp !== null
+    ? `${xpProgress.nextLabel} (${xpProgress.nextMinXp.toLocaleString("id-ID")} XP)`
+    : "Tier maksimum";
+  const remainingXpLabel = xpProgress.remainingXp !== null
+    ? `${xpProgress.remainingXp.toLocaleString("id-ID")} XP lagi`
+    : "Sudah mencapai puncak";
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -157,12 +164,27 @@ export default function DashboardPage() {
               <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${hasResolvedClass ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
                 {enrolledClass?.name ?? profile?.classes?.name ?? "Tanpa Kelas"}
               </span>
-              <span className={`px-3 py-1 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+              <span className={`px-3 py-1 border text-[10px] font-bold uppercase tracking-[0.24em] flex items-center gap-2 ${xpRankClass(xpRank.tone)}`}>
+                <RankEmblem tone={xpRank.tone} label={`Rank ${xpRank.label}`} size={24} />
                 Rank: {xpRank.label}
               </span>
               <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
                 XP: {xpValue}
               </span>
+            </div>
+            <div className="mt-5 max-w-2xl grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-4 bg-white/5 border border-white/10">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Target rank berikutnya</p>
+                <p className="mt-2 text-sm font-bold text-white">{nextTargetLabel}</p>
+              </div>
+              <div className="p-4 bg-white/5 border border-white/10">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Sisa XP</p>
+                <p className="mt-2 text-sm font-bold text-white">{remainingXpLabel}</p>
+              </div>
+              <div className="p-4 bg-white/5 border border-white/10">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Progress Tier</p>
+                <p className="mt-2 text-sm font-bold text-white">{xpProgress.progress}% ke {xpProgress.nextLabel ?? "maksimum"}</p>
+              </div>
             </div>
             <div className="mt-5 max-w-xl">
               <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-white/40 mb-2">

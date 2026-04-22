@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="g" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF6C7"/>
+      <stop offset="0.32" stop-color="#FFD86B"/>
+      <stop offset="0.68" stop-color="#D79A18"/>
+      <stop offset="1" stop-color="#6E4300"/>
+    </linearGradient>
+    <radialGradient id="r" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(92 76) rotate(55) scale(140 150)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="#120F09"/>
+  <circle cx="128" cy="128" r="110" fill="url(#g)" opacity="0.24"/>
+  <circle cx="128" cy="128" r="94" fill="url(#g)" stroke="#FFF1AA" stroke-width="8"/>
+  <circle cx="128" cy="128" r="70" fill="#111111" opacity="0.35"/>
+  <path d="M72 112L102 94L128 58L154 94L184 112L168 148H88L72 112Z" fill="#FFF4B6" stroke="#8A5C06" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M88 148H168L160 180H96L88 148Z" fill="#F3BD34" stroke="#8A5C06" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M112 118L128 102L144 118L132 138H124L112 118Z" fill="#FFFCE3"/>
+  <circle cx="128" cy="128" r="104" stroke="url(#r)" stroke-width="16"/>
+  <circle cx="84" cy="82" r="8" fill="#FFF9D8"/>
+  <circle cx="180" cy="176" r="6" fill="#FFF9D8" opacity="0.8"/>
+  <path d="M52 56L62 70L78 76L62 82L52 96L46 82L30 76L46 70L52 56Z" fill="#FFF8D4" opacity="0.9"/>
+</svg>

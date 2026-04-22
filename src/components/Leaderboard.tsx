@@ -6,8 +6,9 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Trophy, Hexagon, Crown } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
-import { getLeaderboardRank, leaderboardRankClass } from "@/utils/rank";
+import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
 import Image from "next/image";
+import { RankEmblem } from "@/components/RankEmblem";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -79,6 +80,8 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
           <div className="space-y-3">
             {leaders.map((user, index) => {
               const leaderboardRank = getLeaderboardRank(index + 1);
+              const xpRank = getXpRank(user.xp);
+              const xpProgress = getXpProgress(user.xp);
               return (
               <div 
                 key={user.id}
@@ -124,6 +127,13 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
                           #{index + 1} {leaderboardRank.label}
                         </span>
+                        <span className={`inline-flex items-center gap-2 px-2.5 py-1 mt-2 ml-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+                          <RankEmblem tone={xpRank.tone} label={`Rank ${xpRank.label}`} size={22} />
+                          Rank: {xpRank.label}
+                        </span>
+                        <p className="text-white/35 text-[10px] uppercase tracking-[0.24em] mt-2">
+                          Target: {xpProgress.nextLabel && xpProgress.nextMinXp !== null ? `${xpProgress.nextLabel} (${xpProgress.nextMinXp.toLocaleString("id-ID")} XP)` : "Tier maksimum"}
+                        </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }).map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>

@@ -16,6 +16,7 @@ export type XpProgress = {
   nextLabel: string | null;
   currentMinXp: number;
   nextMinXp: number | null;
+  remainingXp: number | null;
   progress: number;
 };
 
@@ -68,8 +69,26 @@ export function getXpProgress(xp: number): XpProgress {
     nextLabel: nextTier?.label ?? null,
     currentMinXp: lowerBound,
     nextMinXp: upperBound,
+    remainingXp: upperBound ? Math.max(0, upperBound - xp) : null,
     progress,
   };
+}
+
+export function getRankEmblemSrc(tone: LeaderboardRank["tone"] | XpRank["tone"]) {
+  switch (tone) {
+    case "gold":
+      return "/ranks/gold.svg";
+    case "silver":
+      return "/ranks/silver.svg";
+    case "bronze":
+      return "/ranks/bronze.svg";
+    case "emerald":
+      return "/ranks/emerald.svg";
+    case "violet":
+      return "/ranks/violet.svg";
+    default:
+      return "/ranks/accent.svg";
+  }
 }
 
 export function leaderboardRankClass(tone: LeaderboardRank["tone"]) {

@@ -3,9 +3,10 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
-import { getLeaderboardRank, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
+import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
 import Link from "next/link";
 import Image from "next/image";
+import { RankEmblem } from "@/components/RankEmblem";
 
 export const metadata = {
   title: "Leaderboard | Netvora Academy",
@@ -77,6 +78,7 @@ export default async function LeaderboardPage() {
                 const rank = i + 1;
                 const leaderboardRank = getLeaderboardRank(rank);
                 const xpRank = getXpRank(user.xp);
+                const xpProgress = getXpProgress(user.xp);
                 const badges = deriveBadges({ xp: user.xp, badges: Array.isArray(user.badges) ? user.badges : [] });
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -110,9 +112,13 @@ export default async function LeaderboardPage() {
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-3 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
                           #{rank} {leaderboardRank.label}
                         </span>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-3 ml-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+                        <span className={`inline-flex items-center gap-2 px-2.5 py-1 mt-3 ml-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+                          <RankEmblem tone={xpRank.tone} label={`Rank ${xpRank.label}`} size={24} />
                           Rank: {xpRank.label}
                         </span>
+                        <p className="text-white/40 text-[10px] uppercase tracking-[0.24em] mt-3">
+                          Target: {xpProgress.nextLabel && xpProgress.nextMinXp !== null ? `${xpProgress.nextLabel} (${xpProgress.nextMinXp.toLocaleString("id-ID")} XP)` : "Tier maksimum"}
+                        </p>
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
