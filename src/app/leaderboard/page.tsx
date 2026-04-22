@@ -122,6 +122,18 @@ export default async function LeaderboardPage() {
                         <p className="text-white/40 text-[10px] uppercase tracking-[0.24em] mt-3">
                           Target: {xpProgress.nextLabel && xpProgress.nextMinXp !== null ? `${xpProgress.nextLabel} (${xpProgress.nextMinXp.toLocaleString("id-ID")} XP)` : "Tier maksimum"}
                         </p>
+                        <div className="mt-2 w-full max-w-md">
+                          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-white/35 mb-2">
+                            <span>Progress XP</span>
+                            <span>{xpProgress.progress}%</span>
+                          </div>
+                          <div className="h-2.5 bg-white/5 border border-white/10 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-[#FF2D2D] via-yellow-400 to-emerald-400 transition-all duration-500"
+                              style={{ width: `${xpProgress.progress}%` }}
+                            />
+                          </div>
+                        </div>
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
