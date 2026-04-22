@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, ClipboardList, Loader2, Zap, Camera, Users, ChevronRight } from "lucide-react";
+import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
 
 type ClassInfo = { name: string; grade: string; section: string };
 type Profile = {
@@ -19,7 +19,6 @@ type Profile = {
   class_id: string | null;
   classes: ClassInfo | null;
 };
-type ClassRow = { id: string; name: string; grade: string; section: string };
 type AssignmentRow = { id: string; title: string; courses: { title: string } | null };
 type QuizRow = { id: string; title: string; end_at: string | null };
 type CourseRow = { id: string; title: string; category?: string | null; level?: string | null; duration_hours?: number | null };
@@ -30,15 +29,12 @@ export default function DashboardPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [submissions, setSubmissions] = useState<Set<string>>(new Set());
   const [attempts, setAttempts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -65,8 +61,7 @@ export default function DashboardPage() {
 
       const classFilter = p?.class_id ? `class_id.eq.${p.class_id},class_id.is.null` : `class_id.is.null`;
 
-      const [{ data: cl }, { data: asgn }, { data: qz }, { data: crs }, { data: sub }, { data: att }] = await Promise.all([
-        supabase.from("classes").select("*").order("name"),
+      const [{ data: asgn }, { data: qz }, { data: crs }, { data: sub }, { data: att }] = await Promise.all([
         supabase.from("assignments").select("*, courses(title)").eq("class_id", p?.class_id ?? "00000000-0000-0000-0000-000000000000").order("due_date", { ascending: true }).limit(5),
         supabase.from("quizzes").select("id, title, end_at").or(classFilter).eq("is_published", true),
         supabase.from("courses").select("*").or(classFilter).eq("is_published", true).limit(6),
@@ -74,7 +69,6 @@ export default function DashboardPage() {
         supabase.from("quiz_attempts").select("quiz_id").eq("student_id", user.id),
       ]);
 
-      setClasses(cl ?? []);
       setAssignments(asgn ?? []);
       setQuizzes(qz ?? []);
       setCourses(crs ?? []);
@@ -84,30 +78,6 @@ export default function DashboardPage() {
     };
     init();
   }, [router, supabase]);
-
-  const handleJoinClass = async (classId: string) => {
-    if (!profile?.id) return;
-    setJoining(true);
-    setJoinError("");
-
-    try {
-      const chosenClass = classes.find((item) => item.id === classId) ?? null;
-      const { error } = await supabase.from("profiles").update({ class_id: classId }).eq("id", profile.id);
-
-      if (error) {
-        setJoinError(`Gagal bergabung ke kelas ini: ${error.message}`);
-        return;
-      }
-
-      setProfile((prev) => prev ? { ...prev, class_id: classId, classes: chosenClass } : prev);
-      router.refresh();
-    } catch (error) {
-      console.error("Join class error:", error);
-      setJoinError("Gagal memproses pilihan kelas. Coba lagi beberapa saat.");
-    } finally {
-      setJoining(false);
-    }
-  };
 
   if (loading) return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -149,37 +119,9 @@ export default function DashboardPage() {
 
       <div className="container mx-auto px-6 md:px-12 py-10 space-y-12">
         
-        {/* JOIN CLASS PROMPT */}
         {!profile?.class_id && (
-          <div className="p-8 bg-accent/5 border border-accent/20 rounded-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <Users className="w-6 h-6 text-accent" />
-              <h2 className="text-xl font-bold uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Pilih Kelasmu</h2>
-            </div>
-            <p className="text-white/60 text-sm mb-6 max-w-xl">Kamu belum terdaftar di kelas manapun. Silakan pilih kelasmu di bawah ini untuk melihat tugas, ujian, dan materi yang relevan.</p>
-            {joinError && (
-              <div className="mb-4 p-4 bg-[#FF2D2D]/10 border border-[#FF2D2D]/30 text-[#FF2D2D] text-sm">
-                {joinError}
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {classes.map((cl) => (
-                <button
-                  key={cl.id}
-                  type="button"
-                  disabled={joining}
-                  onClick={() => handleJoinClass(cl.id)}
-                  aria-busy={joining}
-                  className="p-4 bg-white/5 border border-white/10 hover:border-accent hover:bg-accent/10 text-left transition-all group cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <p className="text-white font-bold group-hover:text-accent transition-colors flex items-center justify-between gap-3">
-                    <span>{cl.name}</span>
-                    {joining ? <Loader2 className="w-4 h-4 animate-spin text-accent shrink-0" /> : null}
-                  </p>
-                  <p className="text-white/30 text-[10px] uppercase tracking-widest mt-1">{cl.grade} - {cl.section}</p>
-                </button>
-              ))}
-            </div>
+          <div className="p-6 bg-accent/5 border border-accent/20 rounded-sm text-sm text-white/70">
+            Kelas belum tersimpan di profilmu. Jika kamu baru mendaftar, refresh halaman ini. Kalau masih kosong, cek data kelas di pendaftaran atau minta admin memperbaiki profilmu di Supabase.
           </div>
         )}
 

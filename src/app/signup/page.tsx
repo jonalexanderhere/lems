@@ -45,11 +45,16 @@ export default function SignupPage() {
     setError("");
 
     const supabase = createClient();
-    const { data, error: signupError } = await supabase.auth.signUp({
+    const { error: signupError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
-        data: { full_name: form.fullName, username: form.username },
+        data: {
+          full_name: form.fullName,
+          username: form.username,
+          class_id: selectedClass.id,
+          year_enrolled: new Date().getFullYear(),
+        },
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
     });
@@ -58,14 +63,6 @@ export default function SignupPage() {
       setError(signupError.message);
       setLoading(false);
       return;
-    }
-
-    // Update profile with class_id and year_enrolled
-    if (data.user) {
-      await supabase.from("profiles").update({
-        class_id: selectedClass.id,
-        year_enrolled: new Date().getFullYear(),
-      }).eq("id", data.user.id);
     }
 
     router.push("/dashboard");

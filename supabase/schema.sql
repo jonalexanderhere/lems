@@ -73,15 +73,36 @@ create table if not exists profiles (
 create or replace function handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, username)
+  insert into public.profiles (id, full_name, username, class_id, year_enrolled)
   values (
     new.id,
     new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'username'
+    new.raw_user_meta_data->>'username',
+    nullif(new.raw_user_meta_data->>'class_id', '')::uuid,
+    nullif(new.raw_user_meta_data->>'year_enrolled', '')::int
   );
   return new;
 end;
 $$ language plpgsql security definer;
+
+-- Backfill existing profiles from stored auth metadata when available
+update public.profiles p
+set
+  class_id = coalesce(
+    p.class_id,
+    nullif(u.raw_user_meta_data->>'class_id', '')::uuid
+  ),
+  year_enrolled = coalesce(
+    p.year_enrolled,
+    nullif(u.raw_user_meta_data->>'year_enrolled', '')::int
+  )
+from auth.users u
+where u.id = p.id
+  and u.raw_user_meta_data is not null
+  and (
+    p.class_id is null
+    or p.year_enrolled is null
+  );
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

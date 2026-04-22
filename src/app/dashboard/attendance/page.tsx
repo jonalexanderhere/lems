@@ -97,7 +97,7 @@ export default function AttendancePage() {
         if (p?.class_id) {
           const todayStr = getLocalDateString();
           const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
-          if (sess) setSession(sess);
+          setSession(sess ? { start_time: sess.start_time, end_time: sess.end_time } : null);
         }
       };
       await fetchSession();

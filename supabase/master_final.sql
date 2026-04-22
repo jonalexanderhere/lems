@@ -23,6 +23,7 @@ CREATE TABLE profiles (
   full_name TEXT,
   username TEXT UNIQUE,
   class_id UUID, -- Will reference classes later
+  year_enrolled INT,
   avatar_url TEXT,
   badges JSONB DEFAULT '[]'::JSONB,
   face_descriptor JSONB,
@@ -30,6 +31,26 @@ CREATE TABLE profiles (
   xp INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, username, class_id, year_enrolled)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'username',
+    NULLIF(NEW.raw_user_meta_data->>'class_id', '')::UUID,
+    NULLIF(NEW.raw_user_meta_data->>'year_enrolled', '')::INT
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
 CREATE TABLE academic_years (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

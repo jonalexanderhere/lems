@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
@@ -65,7 +65,6 @@ export default function TeacherDashboard() {
   const [attClassId, setAttClassId] = useState("");
   const [attStartTime, setAttStartTime] = useState("00:00");
   const [attEndTime, setAttEndTime] = useState("23:59");
-  const [lastSessKey, setLastSessKey] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attSaving, setAttSaving] = useState(false);
@@ -237,14 +236,43 @@ export default function TeacherDashboard() {
     [attDate, attStartTime, attEndTime, clockNow]
   );
 
-  // 1. EFFECT TO LOAD SESSION TIMES (ONLY when class/date selection actually changes)
-  useEffect(() => {
-    if (tab !== "attendance" || !attDate || !attClassId) return;
-    const currentKey = `${attClassId}-${attDate}`;
-    if (currentKey === lastSessKey) return; // Don't overwrite if user is editing the same session
+  const fetchAttendanceSession = useCallback(async () => {
+    if (tab !== "attendance" || !attDate || !attClassId) {
+      return null;
+    }
 
-    const loadSession = async () => {
-      const { data: sess } = await supabase.from("attendance_sessions").select("*").eq("class_id", attClassId).eq("date", attDate).single();
+    const { data: sess, error } = await supabase
+      .from("attendance_sessions")
+      .select("id, start_time, end_time")
+      .eq("class_id", attClassId)
+      .eq("date", attDate)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to load attendance session:", error);
+      return null;
+    }
+
+    return sess ?? null;
+  }, [attClassId, attDate, supabase, tab]);
+
+  // Reload the current session whenever the selected class/date changes.
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (tab !== "attendance" || !attDate || !attClassId) {
+        setSessionId("");
+        if (!attClassId) {
+          setAttStartTime("07:00");
+          setAttEndTime("14:00");
+        }
+        return;
+      }
+
+      const sess = await fetchAttendanceSession();
+      if (cancelled) return;
+
       if (sess) {
         setSessionId(sess.id);
         setAttStartTime(normalizeTimeValue(sess.start_time));
@@ -254,10 +282,13 @@ export default function TeacherDashboard() {
         setAttStartTime("07:00");
         setAttEndTime("14:00");
       }
-      setLastSessKey(currentKey);
     };
-    loadSession();
-  }, [tab, attDate, attClassId, supabase, lastSessKey]);
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [attClassId, attDate, fetchAttendanceSession, tab]);
 
   // 2. EFFECT TO FETCH ATTENDANCE RECORDS (When any filter changes)
   useEffect(() => {
@@ -347,7 +378,14 @@ export default function TeacherDashboard() {
 
     if (error) { alert("Gagal menyimpan sesi: " + error.message); }
     else {
-      if (savedSession?.id) setSessionId(savedSession.id);
+      const refreshedSession = await fetchAttendanceSession();
+      if (refreshedSession) {
+        setSessionId(refreshedSession.id);
+        setAttStartTime(normalizeTimeValue(refreshedSession.start_time));
+        setAttEndTime(normalizeTimeValue(refreshedSession.end_time));
+      } else if (savedSession?.id) {
+        setSessionId(savedSession.id);
+      }
       alert("Sesi absensi berhasil ditetapkan untuk kelas ini.");
     }
     setAttSaving(false);
