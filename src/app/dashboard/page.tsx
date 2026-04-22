@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
 import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
+import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
 
 type ClassInfo = { id: string; name: string; grade: string; section: string };
 type Profile = {
@@ -135,6 +136,10 @@ export default function DashboardPage() {
   const pendingAssignments = assignments.filter(a => !submissions.has(a.id));
   const pendingQuizzes = quizzes.filter(q => !attempts.has(q.id) && (!q.end_at || new Date(q.end_at) > new Date()));
   const hasResolvedClass = Boolean(enrolledClass || profile?.classes || profile?.class_id);
+  const displayName = profile?.username ?? profile?.full_name ?? "Siswa";
+  const xpValue = profile?.xp ?? 0;
+  const xpRank = getXpRank(xpValue);
+  const xpProgress = getXpProgress(xpValue);
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -146,15 +151,33 @@ export default function DashboardPage() {
           <div>
             <p className="text-[#FF2D2D] font-mono text-sm uppercase tracking-widest mb-2">Dashboard Siswa</p>
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
-              Halo, {profile?.username ?? profile?.full_name?.split(" ")[0] ?? "Pengguna"}.
+              Halo, {displayName}.
             </h1>
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
               <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${hasResolvedClass ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
                 {enrolledClass?.name ?? profile?.classes?.name ?? "Tanpa Kelas"}
               </span>
-              <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
-                XP: {profile?.xp ?? 0}
+              <span className={`px-3 py-1 border text-[10px] font-bold uppercase tracking-[0.24em] ${xpRankClass(xpRank.tone)}`}>
+                Rank: {xpRank.label}
               </span>
+              <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
+                XP: {xpValue}
+              </span>
+            </div>
+            <div className="mt-5 max-w-xl">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-white/40 mb-2">
+                <span>Progress XP</span>
+                <span>{xpProgress.progress}% ke {xpProgress.nextLabel ?? "maksimum"}</span>
+              </div>
+              <div className="h-3 bg-white/5 border border-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#FF2D2D] via-yellow-400 to-emerald-400 transition-all"
+                  style={{ width: `${xpProgress.progress}%` }}
+                />
+              </div>
+              <p className="text-white/35 text-xs mt-2">
+                XP kamu tersinkron otomatis dari aktivitas belajar, kuis, dan penilaian tugas.
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
