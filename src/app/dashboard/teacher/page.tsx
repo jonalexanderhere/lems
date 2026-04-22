@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2, RefreshCw, Clock } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2, RefreshCw, Clock, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -43,6 +43,14 @@ type AttendanceFeedRow = {
   full_name: string | null;
   username: string | null;
 };
+type ClassRow = { id: string; name: string; grade: string; section: string };
+
+const GRADE_NEXT: Record<string, string | null> = {
+  X: "XI",
+  XI: "XII",
+  XII: "Alumni",
+  Alumni: null,
+};
 
 function firstItem<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -55,9 +63,10 @@ export default function TeacherDashboard() {
   const [profile, setProfile] = useState<{ id: string; full_name: string | null; role: string } | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
+  const [studentClassDrafts, setStudentClassDrafts] = useState<Record<string, string>>({});
   const [accounts, setAccounts] = useState<RegisteredAccount[]>([]);
   const [tab, setTab] = useState<"courses" | "assignments" | "students" | "accounts" | "reports" | "attendance">("courses");
   const [reportClassId, setReportClassId] = useState("");
@@ -69,6 +78,8 @@ export default function TeacherDashboard() {
   const [gradingSaving, setGradingSaving] = useState(false);
   const [resettingEmail, setResettingEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
+  const [promotingStudentId, setPromotingStudentId] = useState("");
+  const [promoteMessage, setPromoteMessage] = useState("");
 
   // Course form
   const [courseForm, setCourseForm] = useState({ title: "", description: "", category: "Networking", level: "Beginner", duration_hours: 0, class_id: "" });
@@ -96,12 +107,20 @@ export default function TeacherDashboard() {
       setCourses(c ?? []);
       const { data: a } = await supabase.from("assignments").select("*, courses(title), classes(name)").eq("teacher_id", user.id).order("created_at", { ascending: false });
       setAssignments(a ?? []);
-      const { data: cl } = await supabase.from("classes").select("id, name").order("grade").order("section");
+      const { data: cl } = await supabase.from("classes").select("id, name, grade, section").order("grade").order("section");
       setClasses(cl ?? []);
       const response = await fetch("/api/management/users");
       if (response.ok) {
         const payload = (await response.json()) as { users?: StudentAccount[] };
         setStudents(payload.users ?? []);
+        setStudentClassDrafts(
+          Object.fromEntries(
+            (payload.users ?? []).map((student) => [
+              student.id,
+              suggestNextClassId(student.class_id, cl ?? []) ?? student.class_id ?? "",
+            ])
+          )
+        );
       }
       const accountsResponse = await fetch("/api/management/accounts");
       if (accountsResponse.ok) {
@@ -157,6 +176,50 @@ export default function TeacherDashboard() {
     setGradingSubmissionId(row.id);
     setGradingScore(row.score == null ? "" : String(row.score));
     setGradingFeedback(row.feedback ?? "");
+  };
+
+  const suggestNextClassId = (currentClassId: string | null, classList: ClassRow[]) => {
+    if (!currentClassId) return "";
+    const currentClass = classList.find((item) => item.id === currentClassId);
+    if (!currentClass) return currentClassId;
+    const nextGrade = GRADE_NEXT[currentClass.grade];
+    if (!nextGrade) return currentClassId;
+    const nextClass = classList.find((item) => item.grade === nextGrade && item.section === currentClass.section);
+    return nextClass?.id ?? currentClassId;
+  };
+
+  const handlePromoteStudent = async (studentId: string) => {
+    const nextClassId = studentClassDrafts[studentId];
+    if (!nextClassId) return;
+    setPromotingStudentId(studentId);
+    setPromoteMessage("");
+
+    const response = await fetch("/api/management/update-student-class", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: studentId, class_id: nextClassId }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; student?: StudentAccount };
+    if (!response.ok) {
+      setPromoteMessage(payload.error ?? "Gagal memperbarui kelas murid.");
+      setPromotingStudentId("");
+      return;
+    }
+
+    setStudents((prev) =>
+      prev.map((student) =>
+        student.id === studentId
+          ? {
+              ...student,
+              class_id: nextClassId,
+              class_name: payload.student?.class_name ?? student.class_name,
+            }
+          : student
+      )
+    );
+    setPromoteMessage("Kelas murid berhasil diperbarui.");
+    setPromotingStudentId("");
   };
 
   const closeGradePanel = () => {
@@ -674,14 +737,18 @@ export default function TeacherDashboard() {
           <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Reset Password Murid</h2>
-                <p className="text-white/40 text-sm mt-2">Kirim link reset password ke murid yang kamu handle.</p>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Reset Password & Naik Kelas Murid</h2>
+                <p className="text-white/40 text-sm mt-2">Kirim reset password atau pindahkan murid ke kelas berikutnya dari satu tempat.</p>
               </div>
               <div className="text-white/40 text-sm">{students.length} akun</div>
             </div>
 
             {resetMessage && (
               <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{resetMessage}</div>
+            )}
+
+            {promoteMessage && (
+              <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{promoteMessage}</div>
             )}
 
             {students.length === 0 ? (
@@ -693,18 +760,46 @@ export default function TeacherDashboard() {
               <div className="space-y-3">
                 {students.map((student) => (
                   <div key={student.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 bg-white/5 border border-white/10">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-bold text-white">{student.full_name ?? student.username ?? "Tanpa Nama"}</p>
                       <p className="text-white/40 text-xs font-mono">{student.email ?? "-"} · {student.class_name ?? "Tanpa Kelas"}</p>
+                      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] max-w-2xl">
+                        <select
+                          value={studentClassDrafts[student.id] ?? student.class_id ?? ""}
+                          onChange={(e) => setStudentClassDrafts((prev) => ({ ...prev, [student.id]: e.target.value }))}
+                          className="bg-white/5 border border-white/10 text-white text-xs px-3 py-2 outline-none focus:border-[#FF2D2D]/50"
+                        >
+                          <option value="">Pilih Kelas</option>
+                          {classes.map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handlePromoteStudent(student.id)}
+                          disabled={promotingStudentId === student.id || !(studentClassDrafts[student.id] ?? student.class_id)}
+                          className="px-4 py-2 bg-green-600/20 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          {promotingStudentId === student.id ? "Menyimpan..." : (
+                            <span className="inline-flex items-center gap-2">
+                              <ArrowRight className="w-4 h-4" /> Naik Kelas
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleResetPassword(student.email ?? "")}
-                      disabled={!student.email || resettingEmail === student.email}
-                      className="px-4 py-2 bg-[#FF2D2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
-                    >
-                      {resettingEmail === student.email ? "Sending..." : "Reset Password"}
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(student.email ?? "")}
+                        disabled={!student.email || resettingEmail === student.email}
+                        className="px-4 py-2 bg-[#FF2D2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                      >
+                        {resettingEmail === student.email ? "Sending..." : "Reset Password"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

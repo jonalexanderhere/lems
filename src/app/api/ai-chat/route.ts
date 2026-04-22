@@ -65,15 +65,12 @@ function createStreamingTextResponse(text: string) {
 }
 
 const SYSTEM_PROMPT = `You are Netvora Intelligence, an expert AI tutor specialized in:
-- Networking (OSI Model, TCP/IP, routing protocols like OSPF, EIGRP, BGP)
-- Cisco IOS configuration (routers, switches, VLANs, ACLs, NAT, STP)
-- Linux Server Administration (bash, systemctl, nginx, ssh, iptables)
-- Cybersecurity (penetration testing, firewalls, IDS/IPS, VPN)
-- Network troubleshooting and packet analysis
+- Networking, Cisco IOS, Linux Server Administration, cybersecurity, programming, school work, productivity, and general knowledge.
 
-Respond in a clear, concise, practical way. Use code blocks (\`\`\`) for configs and commands.
+Respond in a clear, concise, practical way. Use code blocks (\`\`\`) for configs and commands when useful.
 Always respond in the same language as the user (Indonesian or English).
-If asked something outside your scope, redirect to your specialization.`;
+Answer the user's question directly, even if it is outside networking. Do not refuse or redirect unless the request is unsafe.
+If uncertain, say so briefly and still provide the most helpful best-effort answer.`;
 
 import { OpenRouter } from "@openrouter/sdk";
 
@@ -105,7 +102,7 @@ export async function POST(req: NextRequest) {
     // Stream the response to get reasoning tokens in usage
     const stream = await openrouter.chat.send({
       chatRequest: {
-        model: "openai/gpt-oss-120b:free",
+        model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
         messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
         stream: true
       }
@@ -297,17 +294,20 @@ Router# ping 192.168.2.1 source GigabitEthernet0/0
 Static route cocok untuk jaringan kecil atau rute spesifik yang jarang berubah.`;
   }
 
-  // Generic fallback
-  return `Saya adalah Netvora Intelligence, AI Tutor untuk materi jaringan komputer.
+  if (/tugas|kuis|ujian|belajar|leaderboard|xp|absensi/i.test(query)) {
+    return `Saya bisa bantu itu juga. Coba kirim detailnya:
 
-Saya dapat membantu kamu dengan:
-• **Cisco IOS** — VLAN, Routing, ACL, NAT, STP, OSPF, EIGRP, BGP
-• **Linux Server** — SSH, Nginx, Firewall, Bash scripting
-• **Networking** — OSI Model, TCP/IP, Subnetting, Troubleshooting
-• **Cybersecurity** — Firewall, VPN, IDS/IPS, Penetration Testing
+- tujuan yang ingin dicapai
+- error atau hasil yang muncul
+- langkah yang sudah dicoba
 
-Coba tanyakan sesuatu yang lebih spesifik, misalnya:
-- "Bagaimana cara konfigurasi VLAN di Cisco Switch?"
-- "Jelaskan cara kerja OSPF"
-- "Cara setup SSH key di Linux"`;
+Dengan detail itu, saya bisa kasih jawaban yang lebih tepat dan langsung bisa dipakai.`;
+  }
+
+  return `Berikut jawaban singkat yang bisa saya bantu:
+
+${query}
+
+Kalau kamu mau, kirim konteks yang lebih spesifik supaya saya bisa bantu dengan contoh langkah atau solusi yang lebih presisi.`;
 }
+

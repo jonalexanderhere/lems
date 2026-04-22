@@ -12,6 +12,8 @@ export const metadata = {
   description: "Top network engineers ranked by XP.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function LeaderboardPage() {
   const supabase = await createClient();
   const { data: leaders } = await supabase
