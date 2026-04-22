@@ -42,6 +42,8 @@ export default function DashboardPage() {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+      const metadataClassId = typeof user.user_metadata?.class_id === "string" ? user.user_metadata.class_id : null;
+      const metadataYear = Number.isFinite(Number(user.user_metadata?.year_enrolled)) ? Number(user.user_metadata.year_enrolled) : null;
 
       const { data: p } = await supabase
         .from("profiles")
@@ -51,28 +53,56 @@ export default function DashboardPage() {
 
       if (p?.role === "admin") { router.push("/dashboard/admin"); return; }
       if (p?.role === "teacher") { router.push("/dashboard/teacher"); return; }
-      
-      const normalizedProfile: Profile | null = p
+
+      let profileRow = p;
+      if (!profileRow?.class_id && metadataClassId) {
+        const { error: repairError } = await supabase.from("profiles").upsert({
+          id: user.id,
+          full_name: profileRow?.full_name ?? user.user_metadata?.full_name ?? null,
+          username: profileRow?.username ?? user.user_metadata?.username ?? null,
+          class_id: metadataClassId,
+          year_enrolled: metadataYear,
+        }, { onConflict: "id" });
+
+        if (!repairError) {
+          const { data: repaired } = await supabase
+            .from("profiles")
+            .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(id, name, grade, section)")
+            .eq("id", user.id)
+            .single();
+          if (repaired) profileRow = repaired;
+        }
+      }
+
+      const normalizedProfile: Profile | null = profileRow
         ? {
-            ...p,
-            classes: Array.isArray(p.classes) ? p.classes[0] ?? null : p.classes ?? null,
+            ...profileRow,
+            classes: Array.isArray(profileRow.classes) ? profileRow.classes[0] ?? null : profileRow.classes ?? null,
           }
         : null;
 
       setProfile(normalizedProfile);
       let resolvedClass: ClassRow | null = normalizedProfile?.classes ?? null;
+      if (!resolvedClass && metadataClassId) {
+        const { data: metadataClass } = await supabase
+          .from("classes")
+          .select("id, name, grade, section")
+          .eq("id", metadataClassId)
+          .maybeSingle();
+        resolvedClass = metadataClass ?? null;
+      }
 
-      if (p?.class_id) {
+      if (profileRow?.class_id) {
         const { data: classRow } = await supabase
           .from("classes")
           .select("id, name, grade, section")
-          .eq("id", p.class_id)
+          .eq("id", profileRow.class_id)
           .maybeSingle();
 
         resolvedClass = classRow ?? resolvedClass;
       }
 
-      const activeClassId = resolvedClass?.id ?? p?.class_id ?? null;
+      const activeClassId = resolvedClass?.id ?? profileRow?.class_id ?? null;
       setEnrolledClass(resolvedClass);
       const classFilter = activeClassId ? `class_id.eq.${activeClassId},class_id.is.null` : `class_id.is.null`;
 

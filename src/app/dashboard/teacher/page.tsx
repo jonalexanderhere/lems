@@ -21,6 +21,10 @@ type StudentAccount = {
   class_name: string | null;
   class_id: string | null;
 };
+type RegisteredAccount = StudentAccount & {
+  role: string;
+  created_at: string;
+};
 type ReportSubmission = {
   id: string;
   score: number | null;
@@ -54,7 +58,8 @@ export default function TeacherDashboard() {
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
-  const [tab, setTab] = useState<"courses" | "assignments" | "students" | "reports" | "attendance">("courses");
+  const [accounts, setAccounts] = useState<RegisteredAccount[]>([]);
+  const [tab, setTab] = useState<"courses" | "assignments" | "students" | "accounts" | "reports" | "attendance">("courses");
   const [reportClassId, setReportClassId] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
@@ -93,6 +98,11 @@ export default function TeacherDashboard() {
       if (response.ok) {
         const payload = (await response.json()) as { users?: StudentAccount[] };
         setStudents(payload.users ?? []);
+      }
+      const accountsResponse = await fetch("/api/management/accounts");
+      if (accountsResponse.ok) {
+        const payload = (await accountsResponse.json()) as { accounts?: RegisteredAccount[] };
+        setAccounts(payload.accounts ?? []);
       }
       const { data: s } = await supabase
         .from("submissions")
@@ -458,10 +468,10 @@ export default function TeacherDashboard() {
 
         {/* Tabs */}
         <div className="container mx-auto mt-8 flex gap-2 flex-wrap">
-          {(["courses", "assignments", "students", "reports", "attendance"] as const).map((t) => (
+          {(["courses", "assignments", "students", "accounts", "reports", "attendance"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-6 py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${tab === t ? "bg-[#FF2D2D] text-white" : "bg-white/5 text-white/50 hover:text-white"}`}>
-              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Murid" : t === "attendance" ? "Absensi" : "Analisis"}
+              {t === "courses" ? "Materi & Kursus" : t === "assignments" ? "Tugas & Proyek" : t === "students" ? "Murid" : t === "accounts" ? "Akun Terdaftar" : t === "attendance" ? "Absensi" : "Analisis"}
             </button>
           ))}
           <Link href="/dashboard/teacher/quiz" className="px-6 py-2.5 text-sm font-bold uppercase tracking-widest bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/25 transition-colors flex items-center gap-1.5">
@@ -666,6 +676,60 @@ export default function TeacherDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "accounts" && (
+          <div className="space-y-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Akun Terdaftar</h2>
+                <p className="text-white/40 text-sm mt-2">Semua akun yang sudah mendaftar atau dibuat di sistem.</p>
+              </div>
+              <div className="text-white/40 text-sm">{accounts.length} akun</div>
+            </div>
+
+            <div className="overflow-x-auto border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/5 border-b border-white/10 text-xs uppercase font-bold tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4 text-white">Nama</th>
+                    <th className="px-6 py-4 text-white">Username</th>
+                    <th className="px-6 py-4 text-white">Email</th>
+                    <th className="px-6 py-4 text-white">Role</th>
+                    <th className="px-6 py-4 text-white">Kelas</th>
+                    <th className="px-6 py-4 text-white">Dibuat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {accounts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-white/20 italic">
+                        Belum ada akun terdaftar ditemukan.
+                      </td>
+                    </tr>
+                  ) : (
+                    accounts.map((account) => (
+                      <tr key={account.id} className="hover:bg-white/[0.02]">
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-white">{account.full_name ?? "-"}</p>
+                          <p className="text-white/30 text-xs">{account.id}</p>
+                        </td>
+                        <td className="px-6 py-4 text-white/70">{account.username ?? "-"}</td>
+                        <td className="px-6 py-4 text-white/70">{account.email ?? "-"}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-white/10 text-white/60 text-[10px] font-bold uppercase tracking-widest rounded-full">
+                            {account.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-white/70">{account.class_name ?? "-"}</td>
+                        <td className="px-6 py-4 text-white/40 text-xs">{new Date(account.created_at).toLocaleString("id-ID")}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
