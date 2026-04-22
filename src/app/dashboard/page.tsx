@@ -134,6 +134,7 @@ export default function DashboardPage() {
 
   const pendingAssignments = assignments.filter(a => !submissions.has(a.id));
   const pendingQuizzes = quizzes.filter(q => !attempts.has(q.id) && (!q.end_at || new Date(q.end_at) > new Date()));
+  const hasResolvedClass = Boolean(enrolledClass || profile?.classes || profile?.class_id);
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -148,7 +149,7 @@ export default function DashboardPage() {
               Halo, {profile?.username ?? profile?.full_name?.split(" ")[0] ?? "Pengguna"}.
             </h1>
             <div className="flex items-center gap-3 mt-4">
-              <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${enrolledClass || profile?.classes ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
+              <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${hasResolvedClass ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
                 {enrolledClass?.name ?? profile?.classes?.name ?? "Tanpa Kelas"}
               </span>
               <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
@@ -166,7 +167,7 @@ export default function DashboardPage() {
 
       <div className="container mx-auto px-6 md:px-12 py-10 space-y-12">
         
-        {!profile?.class_id && !profile?.classes && (
+        {!hasResolvedClass && (
           <div className="p-6 bg-accent/5 border border-accent/20 rounded-sm text-sm text-white/70">
             Kelas belum tersimpan di profilmu. Jika kamu baru mendaftar, refresh halaman ini. Kalau masih kosong, cek data kelas di pendaftaran atau minta admin memperbaiki profilmu di Supabase.
           </div>
