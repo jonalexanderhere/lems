@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Trophy, Hexagon, Crown } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import { getLeaderboardRank, leaderboardRankClass } from "@/utils/rank";
 import Image from "next/image";
 
 if (typeof window !== "undefined") {
@@ -76,7 +77,9 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
             </div>
           ) : (
           <div className="space-y-3">
-            {leaders.map((user, index) => (
+            {leaders.map((user, index) => {
+              const leaderboardRank = getLeaderboardRank(index + 1);
+              return (
               <div 
                 key={user.id}
                 className={`leaderboard-row relative flex items-center justify-between p-4 md:p-6 rounded-sm border overflow-hidden ${
@@ -111,30 +114,34 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
                     )}
                   </div>
                   
-                  <div>
-                    <div className="flex items-center gap-2">
-                      {index === 0 && <Crown className="w-4 h-4 text-yellow-300" />}
-                      <span className={`font-mono text-base md:text-xl font-medium ${index < 3 ? "text-white" : "text-white/90"}`}>
-                        {user.username ?? user.full_name ?? "Anonymous"}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }).map((badge) => (
-                        <span key={badge.key} className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>
-                          {badge.label}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {index === 0 && <Crown className="w-4 h-4 text-yellow-300" />}
+                          <span className={`font-mono text-base md:text-xl font-medium ${index < 3 ? "text-white" : "text-white/90"}`}>
+                            {user.username ?? user.full_name ?? "Anonymous"}
+                          </span>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
+                          #{index + 1} {leaderboardRank.label}
                         </span>
-                      ))}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }).map((badge) => (
+                            <span key={badge.key} className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
                 <div className="text-right relative z-10">
                   <span className={`block font-heading font-bold text-2xl md:text-3xl ${index === 0 ? "text-yellow-200" : "text-white"}`}>
                     {user.xp.toLocaleString()} <span className="text-sm md:text-base text-accent uppercase tracking-widest">XP</span>
                   </span>
                 </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
           )}
         </div>

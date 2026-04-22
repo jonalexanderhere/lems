@@ -2,6 +2,7 @@
 
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import { getLeaderboardRank, leaderboardRankClass } from "@/utils/rank";
 import Image from "next/image";
 
 type Leader = {
@@ -47,6 +48,7 @@ export function LiveLeaderboard({ leaders }: { leaders: Leader[] }) {
             <div className="space-y-3">
               {leaders.map((user, i) => {
                 const rank = i + 1;
+                const leaderboardRank = getLeaderboardRank(rank);
                 const badges = deriveBadges({ xp: user.xp, badges: user.badges });
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -73,7 +75,9 @@ export function LiveLeaderboard({ leaders }: { leaders: Leader[] }) {
                         <p className={`font-black text-xl md:text-2xl tracking-tight ${rank === 1 ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-yellow-300" : rank === 2 ? "text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-white to-slate-300" : rank === 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-300" : "text-white"}`}>
                           {displayName}
                         </p>
-                        <p className="text-white/40 text-sm">#{rank} {rank === 1 ? "Champion" : rank === 2 ? "Runner-up" : rank === 3 ? "Podium" : "Engineer"}</p>
+                        <p className={`inline-flex items-center gap-1 px-2.5 py-1 mt-2 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
+                          #{rank} {leaderboardRank.label}
+                        </p>
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>

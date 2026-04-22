@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { createClient } from "@/utils/supabase/server";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
+import { getLeaderboardRank, leaderboardRankClass } from "@/utils/rank";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -60,6 +61,7 @@ export default async function LeaderboardPage() {
             <div className="space-y-3">
               {leaders.map((user, i) => {
                 const rank = i + 1;
+                const leaderboardRank = getLeaderboardRank(rank);
                 const badges = deriveBadges({ xp: user.xp, badges: Array.isArray(user.badges) ? user.badges : [] });
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -90,6 +92,9 @@ export default async function LeaderboardPage() {
                           {displayName}
                         </p>
                         <p className="text-white/40 text-sm">{classEntry?.name ?? "-"}</p>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-3 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
+                          #{rank} {leaderboardRank.label}
+                        </span>
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
