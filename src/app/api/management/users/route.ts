@@ -2,6 +2,23 @@ import { createClient as createSupabaseServerClient } from "@/utils/supabase/ser
 import { createAdminClient } from "@/utils/supabase/admin";
 import { NextResponse } from "next/server";
 
+function resolveRole(profileRole: string | null | undefined, authUser?: { app_metadata?: unknown; user_metadata?: unknown }) {
+  const roleFromProfile = typeof profileRole === "string" ? profileRole : null;
+  const appMetadataRole = authUser && typeof authUser.app_metadata === "object" && authUser.app_metadata !== null && "role" in authUser.app_metadata
+    ? (authUser.app_metadata as { role?: unknown }).role
+    : null;
+  const userMetadataRole = authUser && typeof authUser.user_metadata === "object" && authUser.user_metadata !== null && "role" in authUser.user_metadata
+    ? (authUser.user_metadata as { role?: unknown }).role
+    : null;
+  const roleFromAuth = typeof appMetadataRole === "string"
+    ? appMetadataRole
+    : typeof userMetadataRole === "string"
+      ? userMetadataRole
+      : null;
+
+  return roleFromProfile ?? roleFromAuth ?? "student";
+}
+
 export async function GET() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -35,7 +52,7 @@ export async function GET() {
       email: authUser?.email ?? null,
       full_name: row.full_name,
       username: row.username,
-      role: row.role,
+      role: resolveRole(row.role, authUser),
       xp: row.xp ?? 0,
       avatar_url: row.avatar_url ?? null,
       badges: Array.isArray(row.badges) ? row.badges : [],

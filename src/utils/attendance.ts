@@ -26,10 +26,36 @@ export function normalizeTimeValue(value: string | null | undefined, fallback = 
 }
 
 export function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  return getDateStringInTimeZone(date, "Asia/Jakarta");
+}
+
+export function getDateStringInTimeZone(date = new Date(), timeZone = "Asia/Jakarta") {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
   return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateString(date: string, days: number) {
+  const [year, month, day] = date.split("-").map((part) => Number(part));
+  if (!year || !month || !day) return date;
+  const nextDate = new Date(Date.UTC(year, month - 1, day + days));
+  return nextDate.toISOString().slice(0, 10);
+}
+
+export function buildDateRangeForDate(date: string, timeZoneOffset = "+07:00") {
+  const nextDate = addDaysToDateString(date, 1);
+  return {
+    start: `${date}T00:00:00${timeZoneOffset}`,
+    end: `${nextDate}T00:00:00${timeZoneOffset}`,
+  };
 }
 
 export function splitTimeValue(value: string | null | undefined) {
@@ -50,12 +76,8 @@ export function isValidTimeRange(startTime: string, endTime: string) {
 export function buildDateTime(date: string, time: string) {
   if (!date || !time) return null;
   const normalizedTime = normalizeTimeValue(time);
-  const [hour, minute] = normalizedTime.split(":").map(Number);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
-
-  const value = new Date(`${date}T00:00:00`);
-  value.setHours(hour, minute, 0, 0);
-  return value;
+  const value = new Date(`${date}T${normalizedTime}:00+07:00`);
+  return Number.isNaN(value.getTime()) ? null : value;
 }
 
 export function timeToMinutes(value: string) {
@@ -94,16 +116,16 @@ export function getAttendanceWindow(date: string, startTime: string, endTime: st
       progress: 0,
       headline: "Jadwal tidak valid",
       detail: "Jam selesai harus lebih besar dari jam mulai.",
-      startLabel: start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-      endLabel: end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+      startLabel: start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }),
+      endLabel: end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }),
     };
   }
 
   const nowMs = now.getTime();
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const startLabel = start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-  const endLabel = end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  const startLabel = start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+  const endLabel = end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
   if (nowMs < startMs) {
     return {

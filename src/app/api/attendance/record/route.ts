@@ -61,10 +61,15 @@ export async function POST(req: Request) {
     typeof body.confidence_score === "number" ? body.confidence_score : null;
 
   const admin = createAdminClient();
+  const sessionQuery = admin.from("attendance_sessions").select("id").eq("date", date);
+  const { data: session } = resolvedClassId
+    ? await sessionQuery.eq("class_id", resolvedClassId).maybeSingle()
+    : { data: null };
 
   const attendanceRecord = {
     student_id: user.id,
     class_id: resolvedClassId,
+    session_id: session?.id ?? null,
     date,
     status,
     method,
@@ -74,6 +79,7 @@ export async function POST(req: Request) {
   const attendanceLog = {
     student_id: user.id,
     class_id: resolvedClassId,
+    session_id: session?.id ?? null,
     method,
     status,
     confidence_score: confidenceScore,

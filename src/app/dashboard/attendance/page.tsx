@@ -16,7 +16,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { getLocalDateString } from "@/utils/attendance";
+import { buildDateRangeForDate, getLocalDateString } from "@/utils/attendance";
 
 type AttendanceProfile = {
   class_id: string | null;
@@ -53,7 +53,10 @@ export default function AttendancePage() {
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
 
-  const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
+  const enrolledDescriptor = useMemo(
+    () => (profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null),
+    [profile?.face_descriptor]
+  );
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
   const autoScanTimerRef = useRef<number | null>(null);
   const autoScanLockRef = useRef(false);
@@ -124,15 +127,14 @@ export default function AttendancePage() {
 
   const fetchTodayRecords = useCallback(async () => {
     setLoadingRecords(true);
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+    const today = getLocalDateString();
+    const { start, end } = buildDateRangeForDate(today);
 
     const { data } = await supabase
       .from("attendance_records")
       .select("id, student_id, created_at, status, class_id, profiles(full_name, username)")
-      .gte("created_at", startOfDay)
-      .lt("created_at", endOfDay)
+      .gte("created_at", start)
+      .lt("created_at", end)
       .order("created_at", { ascending: false });
 
     setTodayRecords((data ?? []) as unknown as AttendanceRecord[]);
@@ -313,12 +315,12 @@ export default function AttendancePage() {
     startCamera().catch((error) => console.error("Auto camera start failed:", error));
   }, [hasEnrollment, modelsReady, profile, startCamera]);
 
-  const clearOverlay = () => {
+  function clearOverlay() {
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx && canvasRef.current) {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     }
-  };
+  }
 
   const enrollFace = async () => {
     if (!faceApi || !userId) return;

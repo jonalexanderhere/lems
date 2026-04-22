@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getLocalDateString } from "@/utils/attendance";
+import { buildDateRangeForDate, getDateStringInTimeZone, getLocalDateString } from "@/utils/attendance";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -46,6 +46,22 @@ type AttendanceFeedRow = {
   class_name: string | null;
   full_name: string | null;
   username: string | null;
+};
+type AttendanceSessionSummary = {
+  id: string;
+  class_id: string | null;
+  class_name: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string | null;
+  teacher_name: string | null;
+  present: number;
+  late: number;
+  sick: number;
+  permission: number;
+  absent: number;
+  total: number;
 };
 type ClassRow = { id: string; name: string; grade: string; section: string };
 
@@ -106,6 +122,7 @@ export default function TeacherDashboard() {
   const [attClassId, setAttClassId] = useState("");
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attendanceFeed, setAttendanceFeed] = useState<AttendanceFeedRow[]>([]);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSessionSummary[]>([]);
   const [attSaving, setAttSaving] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -377,31 +394,73 @@ export default function TeacherDashboard() {
   const loadAttendanceData = useCallback(async () => {
     if (tab !== "attendance" || !attDate) return;
 
-    const start = `${attDate}T00:00:00`;
-    const end = `${attDate}T23:59:59`;
+    const { start, end } = buildDateRangeForDate(attDate);
 
     let recordQuery = supabase
       .from("attendance_records")
       .select("student_id, status, class_id")
       .eq("date", attDate);
+    let sessionQuery = supabase
+      .from("attendance_sessions")
+      .select("id, class_id, date, start_time, end_time, status, classes(name), profiles(full_name)")
+      .eq("date", attDate)
+      .order("start_time", { ascending: true });
     let logQuery = supabase
       .from("attendance_logs")
       .select("id, student_id, status, created_at, class_id, profiles(full_name, username), classes(name)")
       .gte("created_at", start)
-      .lte("created_at", end)
+      .lt("created_at", end)
       .order("created_at", { ascending: false })
       .limit(50);
 
     if (attClassId) {
       recordQuery = recordQuery.eq("class_id", attClassId);
+      sessionQuery = sessionQuery.eq("class_id", attClassId);
       logQuery = logQuery.eq("class_id", attClassId);
     }
 
-    const [{ data: recordData }, { data: logData }] = await Promise.all([recordQuery, logQuery]);
+    const [{ data: recordData }, { data: sessionData }, { data: logData }] = await Promise.all([
+      recordQuery,
+      sessionQuery,
+      logQuery,
+    ]);
 
     const mapping: Record<string, string> = {};
     recordData?.forEach((r: { student_id: string; status: string }) => {
       if (r.student_id) mapping[r.student_id] = r.status;
+    });
+
+    const normalizedSessions = (sessionData ?? []).map((session: {
+      id: string;
+      class_id: string | null;
+      date: string;
+      start_time: string;
+      end_time: string;
+      status: string | null;
+      classes: { name: string } | { name: string }[] | null;
+      profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+    }) => {
+      const classEntry = firstItem(session.classes);
+      const teacherEntry = firstItem(session.profiles);
+      const recordsForSession = (recordData ?? []).filter((record: { class_id: string | null }) => record.class_id === session.class_id);
+      const countByStatus = (status: string) => recordsForSession.filter((record: { status: string }) => record.status === status).length;
+      const total = recordsForSession.length;
+      return {
+        id: session.id,
+        class_id: session.class_id,
+        class_name: classEntry?.name ?? null,
+        date: session.date,
+        start_time: session.start_time,
+        end_time: session.end_time,
+        status: session.status,
+        teacher_name: teacherEntry?.full_name ?? null,
+        present: countByStatus("present"),
+        late: countByStatus("late"),
+        sick: countByStatus("sick"),
+        permission: countByStatus("permission"),
+        absent: countByStatus("absent"),
+        total,
+      };
     });
 
     const feed = (logData ?? []).map((row: {
@@ -427,6 +486,7 @@ export default function TeacherDashboard() {
     });
 
     setAttRecords(mapping);
+    setAttendanceSessions(normalizedSessions);
     setAttendanceFeed(feed as AttendanceFeedRow[]);
   }, [attClassId, attDate, supabase, tab]);
 
@@ -453,7 +513,7 @@ export default function TeacherDashboard() {
           created_at: string;
           class_id: string | null;
         };
-        const logDate = row.created_at.split("T")[0];
+        const logDate = getDateStringInTimeZone(new Date(row.created_at));
         if (logDate !== attDate) return;
         if (attClassId && row.class_id !== attClassId) return;
 
@@ -501,9 +561,8 @@ export default function TeacherDashboard() {
     if (!confirm("Hapus data absensi murid ini?")) return;
     setAttSaving(true);
     await supabase.from("attendance_records").delete().eq("student_id", studentId).eq("date", attDate);
-    const start = `${attDate}T00:00:00`;
-    const end = `${attDate}T23:59:59`;
-    await supabase.from("attendance_logs").delete().eq("student_id", studentId).gte("created_at", start).lte("created_at", end);
+    const { start, end } = buildDateRangeForDate(attDate);
+    await supabase.from("attendance_logs").delete().eq("student_id", studentId).gte("created_at", start).lt("created_at", end);
     
     const newRecs = { ...attRecords };
     delete newRecs[studentId];
@@ -1196,6 +1255,65 @@ export default function TeacherDashboard() {
             <div className="bg-white/5 border border-white/10 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <div>
+                  <p className="text-sm uppercase tracking-widest text-white/40">Rekap Sesi</p>
+                  <p className="text-white font-bold">Rekap dipetakan berdasarkan tanggal dan jam sesi absensi.</p>
+                </div>
+                <div className="text-white/40 text-sm">{attendanceSessions.length} sesi</div>
+              </div>
+              {attendanceSessions.length === 0 ? (
+                <div className="p-8 text-center text-white/40">
+                  <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Belum ada sesi absensi pada tanggal ini.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5">
+                  {attendanceSessions.map((session) => {
+                    const isActive = session.status === "active";
+                    return (
+                      <div key={session.id} className={`p-4 border ${isActive ? "border-green-400/30 bg-green-500/5" : "border-white/10 bg-black/20"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-widest mb-1">{session.class_name ?? "Tanpa Kelas"}</p>
+                            <h3 className="font-black text-white">{session.teacher_name ?? "Guru"}</h3>
+                            <p className="text-white/40 text-xs mt-1">{session.date} · {session.start_time} - {session.end_time}</p>
+                          </div>
+                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest border ${isActive ? "border-green-400/30 bg-green-500/15 text-green-300" : "border-white/10 bg-white/5 text-white/40"}`}>
+                            {session.status ?? "scheduled"}
+                          </span>
+                        </div>
+                        <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+                          {[
+                            ["H", session.present, "bg-green-500/15 text-green-300"],
+                            ["T", session.late, "bg-yellow-500/15 text-yellow-300"],
+                            ["S", session.sick, "bg-blue-500/15 text-blue-300"],
+                            ["I", session.permission, "bg-purple-500/15 text-purple-300"],
+                            ["A", session.absent, "bg-red-500/15 text-red-300"],
+                          ].map(([label, value, cls]) => (
+                            <div key={String(label)} className={`p-2 border border-white/10 ${cls}`}>
+                              <p className="text-[10px] uppercase tracking-widest">{label}</p>
+                              <p className="mt-1 font-black">{value as number}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 h-2 bg-white/5 border border-white/10 overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${isActive ? "bg-green-400" : "bg-[#FF2D2D]"}`}
+                            style={{ width: `${session.total > 0 ? Math.min(100, Math.round(((session.present + session.late + session.sick + session.permission) / session.total) * 100)) : 0}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[10px] uppercase tracking-widest text-white/35">
+                          Total tercatat {session.total} siswa
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
                   <p className="text-sm uppercase tracking-widest text-white/40">Feed Realtime</p>
                   <p className="text-white font-bold">Nama, kelas, jam, dan status akan muncul saat siswa melakukan absensi.</p>
                 </div>
@@ -1333,8 +1451,10 @@ export default function TeacherDashboard() {
               <button onClick={async () => {
                 if (confirm("Bersihkan semua absensi untuk tanggal ini?") && confirm("Yakin?")) {
                   await supabase.from("attendance_records").delete().eq("date", attDate);
-                  await supabase.from("attendance_logs").delete().gte("created_at", `${attDate}T00:00:00`).lte("created_at", `${attDate}T23:59:59`);
+                  const { start, end } = buildDateRangeForDate(attDate);
+                  await supabase.from("attendance_logs").delete().gte("created_at", start).lt("created_at", end);
                   setAttRecords({});
+                  setAttendanceSessions([]);
                   setAttendanceFeed([]);
                 }
               }} className="px-4 py-2.5 bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-all">
