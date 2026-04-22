@@ -16,10 +16,11 @@ export default async function Home() {
   // Fetch real leaderboard (top 5 by XP)
   const { data: leaders } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp")
-    .eq("role", "student")
+    .select("id, username, full_name, xp, role")
     .order("xp", { ascending: false })
     .limit(5);
+
+  const rankedLeaders = (leaders ?? []).filter((leader) => leader.role !== "teacher" && leader.role !== "admin");
 
   return (
     <main className="min-h-screen bg-background">
@@ -29,7 +30,7 @@ export default async function Home() {
       <TrustBadges />
       <AboutNetvora />
       <AITutorTeaser />
-      <LiveLeaderboard leaders={leaders ?? []} />
+      <LiveLeaderboard leaders={rankedLeaders} />
       <Analytics />
       <Awards />
       <Footer />

@@ -16,12 +16,13 @@ export default async function LeaderboardPage() {
   const supabase = await createClient();
   const { data: leaders } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp, avatar_url, badges, class_id")
-    .eq("role", "student")
+    .select("id, username, full_name, xp, avatar_url, badges, class_id, role")
     .order("xp", { ascending: false })
     .limit(20);
 
-  const classIds = [...new Set((leaders ?? []).map((leader) => leader.class_id).filter((value): value is string => Boolean(value)))];
+  const rankedLeaders = (leaders ?? []).filter((leader) => leader.role !== "teacher" && leader.role !== "admin");
+
+  const classIds = [...new Set(rankedLeaders.map((leader) => leader.class_id).filter((value): value is string => Boolean(value)))];
   const classMap = new Map<string, string>();
   if (classIds.length > 0) {
     const { data: classes } = await supabase
@@ -62,7 +63,7 @@ export default async function LeaderboardPage() {
 
       <section className="py-16 px-6 md:px-12">
         <div className="container mx-auto max-w-5xl">
-          {!leaders || leaders.length === 0 ? (
+          {!rankedLeaders || rankedLeaders.length === 0 ? (
             <div className="text-center text-white/30 border border-dashed border-white/10 p-24 bg-white/[0.02]">
               <Trophy className="w-16 h-16 mx-auto mb-6 opacity-20" />
               <p className="text-xl font-bold mb-2">Leaderboard Kosong</p>
@@ -70,7 +71,7 @@ export default async function LeaderboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {leaders.map((user, i) => {
+              {rankedLeaders.map((user, i) => {
                 const rank = i + 1;
                 const leaderboardRank = getLeaderboardRank(rank);
                 const xpRank = getXpRank(user.xp);
