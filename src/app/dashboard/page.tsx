@@ -24,11 +24,13 @@ type QuizRow = { id: string; title: string; end_at: string | null };
 type CourseRow = { id: string; title: string; category?: string | null; level?: string | null; duration_hours?: number | null };
 type SubmissionRow = { assignment_id: string };
 type AttemptRow = { quiz_id: string };
+type ClassRow = { id: string; name: string; grade: string; section: string };
 
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [enrolledClass, setEnrolledClass] = useState<ClassRow | null>(null);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [courses, setCourses] = useState<CourseRow[]>([]);
@@ -58,6 +60,17 @@ export default function DashboardPage() {
         : null;
 
       setProfile(normalizedProfile);
+      setEnrolledClass(null);
+
+      if (p?.class_id) {
+        const { data: classRow } = await supabase
+          .from("classes")
+          .select("id, name, grade, section")
+          .eq("id", p.class_id)
+          .maybeSingle();
+
+        setEnrolledClass(classRow ?? null);
+      }
 
       const classFilter = p?.class_id ? `class_id.eq.${p.class_id},class_id.is.null` : `class_id.is.null`;
 
@@ -101,8 +114,8 @@ export default function DashboardPage() {
               Halo, {profile?.username ?? profile?.full_name?.split(" ")[0] ?? "Pengguna"}.
             </h1>
             <div className="flex items-center gap-3 mt-4">
-              <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${profile?.classes ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
-                {profile?.classes?.name ?? "Tanpa Kelas"}
+              <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${enrolledClass || profile?.classes ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
+                {enrolledClass?.name ?? profile?.classes?.name ?? "Tanpa Kelas"}
               </span>
               <span className="text-white/30 text-xs font-mono uppercase tracking-widest">
                 XP: {profile?.xp ?? 0}
