@@ -174,7 +174,7 @@ export default function AttendancePage() {
         if (cancelled) return;
         setModelsReady(true);
         setStatus("capturing");
-        setMessage("Model AI siap. Gunakan kamera untuk daftar atau verifikasi wajah.");
+        setMessage("Model AI siap. Gunakan kamera untuk daftar wajah atau absensi otomatis.");
       } catch (error) {
         console.error("Model load error:", error);
         if (!cancelled) {
@@ -300,13 +300,18 @@ export default function AttendancePage() {
         await videoRef.current.play();
       }
         setStatus("capturing");
-      setMessage(hasEnrollment ? "Kamera aktif. Verifikasi otomatis akan berjalan." : "Kamera aktif. Klik daftarkan wajah.");
+      setMessage(hasEnrollment ? "Kamera aktif. Deteksi otomatis akan berjalan." : "Kamera aktif. Klik daftarkan wajah.");
       if (hasEnrollment) startAutoScan();
     } catch {
       setStatus("error");
       setMessage("Gagal mengakses kamera. Pastikan izin kamera sudah aktif.");
     }
   }, [hasEnrollment, modelsReady, startAutoScan]);
+
+  useEffect(() => {
+    if (!modelsReady || !hasEnrollment || !profile || streamRef.current) return;
+    startCamera().catch((error) => console.error("Auto camera start failed:", error));
+  }, [hasEnrollment, modelsReady, profile, startCamera]);
 
   const clearOverlay = () => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -338,7 +343,7 @@ export default function AttendancePage() {
 
     setProfile((prev) => prev ? { ...prev, face_descriptor: savedDescriptor, face_enrolled_at: new Date().toISOString() } : prev);
     setStatus("success");
-    setMessage("Wajah berhasil didaftarkan. Absensi berikutnya akan otomatis cocok.");
+    setMessage("Wajah berhasil didaftarkan. Absensi berikutnya akan tercatat otomatis.");
     clearOverlay();
     stopCamera();
   };
@@ -414,7 +419,7 @@ export default function AttendancePage() {
                 {status === "success" && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/10 backdrop-blur-sm">
                     <CheckCircle2 className="w-16 h-16 text-green-400 mb-3 animate-bounce" />
-                    <p className="text-xl font-black text-white uppercase tracking-tight">Terverifikasi!</p>
+                    <p className="text-xl font-black text-white uppercase tracking-tight">Absensi Tercatat!</p>
                     <p className="text-green-400 text-sm mt-1 font-mono">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</p>
                   </div>
                 )}
@@ -433,10 +438,12 @@ export default function AttendancePage() {
               </div>
 
               {/* Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-                <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                  <Camera className="w-4 h-4" /> Kamera
-                </button>
+              <div className={`grid grid-cols-1 gap-2 mb-3 ${hasEnrollment ? "sm:grid-cols-1" : "sm:grid-cols-2"}`}>
+                {!hasEnrollment && (
+                  <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                    <Camera className="w-4 h-4" /> Kamera
+                  </button>
+                )}
                 <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
                 </button>
