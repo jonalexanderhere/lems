@@ -2,8 +2,8 @@ import { createClient } from "@/utils/supabase/server";
 import { Navigation } from "@/components/Navigation";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Circle, PlayCircle } from "lucide-react";
-import { awardXp } from "@/utils/xp";
+import { ArrowLeft, CheckCircle2, PlayCircle } from "lucide-react";
+import { LessonCompleteButton } from "@/components/LessonCompleteButton";
 
 export default async function LearnLessonPage({ params }: { params: Promise<{ id: string; lesson_id: string }> }) {
   const { id: courseId, lesson_id: lessonId } = await params;
@@ -30,34 +30,6 @@ export default async function LearnLessonPage({ params }: { params: Promise<{ id
     .single();
 
   const isCompleted = progress?.completed ?? false;
-
-  // Handle Mark as Completed
-  const markCompleted = async () => {
-    "use server";
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: existing } = await supabase
-      .from("lesson_progress")
-      .select("completed")
-      .eq("student_id", user.id)
-      .eq("lesson_id", lessonId)
-      .maybeSingle();
-
-    const wasCompleted = existing?.completed ?? false;
-
-    await supabase.from("lesson_progress").upsert({
-      student_id: user.id,
-      lesson_id: lessonId,
-      completed: true,
-      completed_at: new Date().toISOString()
-    });
-
-    if (!wasCompleted) {
-      await awardXp(supabase, user.id, 10);
-    }
-  };
 
   const courseTitle = lesson.modules?.courses?.title ?? "Course";
 
@@ -112,11 +84,7 @@ export default async function LearnLessonPage({ params }: { params: Promise<{ id
               <CheckCircle2 className="w-5 h-5" /> Selesai
             </div>
           ) : (
-            <form action={markCompleted}>
-              <button type="submit" className="flex items-center gap-2 px-6 py-3 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-colors">
-                <Circle className="w-5 h-5" /> Tandai Selesai
-              </button>
-            </form>
+            <LessonCompleteButton lessonId={lessonId} initialCompleted={isCompleted} />
           )}
         </div>
       </div>

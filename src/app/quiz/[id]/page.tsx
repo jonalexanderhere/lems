@@ -34,6 +34,7 @@ function formatRange(startAt: string | null, endAt: string | null) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "Asia/Jakarta",
   });
   if (!endAt) return start;
   const end = new Date(endAt).toLocaleString("id-ID", {
@@ -42,6 +43,7 @@ function formatRange(startAt: string | null, endAt: string | null) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "Asia/Jakarta",
   });
   return `${start} - ${end}`;
 }
