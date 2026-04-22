@@ -4,12 +4,13 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2, RefreshCw, Clock, ArrowRight } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2, RefreshCw, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildDateRangeForDate, getDateStringInTimeZone, getLocalDateString } from "@/utils/attendance";
+import { suggestNextClassId } from "@/utils/class-promotion";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -65,26 +66,9 @@ type AttendanceSessionSummary = {
 };
 type ClassRow = { id: string; name: string; grade: string; section: string };
 
-const GRADE_NEXT: Record<string, string | null> = {
-  X: "XI",
-  XI: "XII",
-  XII: "Alumni",
-  Alumni: null,
-};
-
 function firstItem<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
-}
-
-function suggestNextClassId(currentClassId: string | null, classList: ClassRow[]) {
-  if (!currentClassId) return "";
-  const currentClass = classList.find((item) => item.id === currentClassId);
-  if (!currentClass) return currentClassId;
-  const nextGrade = GRADE_NEXT[currentClass.grade];
-  if (!nextGrade) return currentClassId;
-  const nextClass = classList.find((item) => item.grade === nextGrade && item.section === currentClass.section);
-  return nextClass?.id ?? currentClassId;
 }
 
 export default function TeacherDashboard() {
@@ -96,10 +80,12 @@ export default function TeacherDashboard() {
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [submissions, setSubmissions] = useState<ReportSubmission[]>([]);
   const [students, setStudents] = useState<StudentAccount[]>([]);
-  const [studentClassDrafts, setStudentClassDrafts] = useState<Record<string, string>>({});
   const [accounts, setAccounts] = useState<RegisteredAccount[]>([]);
   const [tab, setTab] = useState<"courses" | "assignments" | "students" | "accounts" | "reports" | "attendance">("courses");
   const [reportClassId, setReportClassId] = useState("");
+  const [bulkClassId, setBulkClassId] = useState("");
+  const [bulkPromoting, setBulkPromoting] = useState(false);
+  const [bulkPromoteMessage, setBulkPromoteMessage] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [gradingSubmissionId, setGradingSubmissionId] = useState("");
@@ -108,8 +94,6 @@ export default function TeacherDashboard() {
   const [gradingSaving, setGradingSaving] = useState(false);
   const [resettingEmail, setResettingEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
-  const [promotingStudentId, setPromotingStudentId] = useState("");
-  const [promoteMessage, setPromoteMessage] = useState("");
   const activeXpAccounts = useMemo(() => accounts.filter((account) => (account.xp ?? 0) > 0).length, [accounts]);
 
   // Course form
@@ -139,20 +123,15 @@ export default function TeacherDashboard() {
       setCourses(c ?? []);
       const { data: a } = await supabase.from("assignments").select("*, courses(title), classes(name)").eq("teacher_id", user.id).order("created_at", { ascending: false });
       setAssignments(a ?? []);
-      const { data: cl } = await supabase.from("classes").select("id, name, grade, section").order("grade").order("section");
-      setClasses(cl ?? []);
+      const classesResponse = await fetch("/api/classes");
+      const classPayload = classesResponse.ok ? (await classesResponse.json()) as { classes?: ClassRow[] } : { classes: [] as ClassRow[] };
+      const loadedClasses = classPayload.classes ?? [];
+      setClasses(loadedClasses);
+      setBulkClassId((current) => current || loadedClasses.find((item) => item.grade !== "Alumni")?.id || loadedClasses[0]?.id || "");
       const response = await fetch("/api/management/users");
       if (response.ok) {
         const payload = (await response.json()) as { users?: StudentAccount[] };
         setStudents(payload.users ?? []);
-        setStudentClassDrafts(
-          Object.fromEntries(
-            (payload.users ?? []).map((student) => [
-              student.id,
-              suggestNextClassId(student.class_id, cl ?? []) ?? student.class_id ?? "",
-            ])
-          )
-        );
       }
       const accountsResponse = await fetch("/api/management/accounts");
       if (accountsResponse.ok) {
@@ -209,6 +188,10 @@ export default function TeacherDashboard() {
   }, [router, supabase]);
 
   const gradingRow = submissions.find((row) => row.id === gradingSubmissionId) ?? null;
+  const bulkSourceClass = classes.find((item) => item.id === bulkClassId) ?? null;
+  const bulkTargetClassId = bulkClassId ? suggestNextClassId(bulkClassId, classes) : "";
+  const bulkTargetClass = classes.find((item) => item.id === bulkTargetClassId) ?? null;
+  const visibleStudents = students.filter((student) => !bulkClassId || student.class_id === bulkClassId);
 
   const openGradePanel = (row: ReportSubmission) => {
     setGradingSubmissionId(row.id);
@@ -216,38 +199,58 @@ export default function TeacherDashboard() {
     setGradingFeedback(row.feedback ?? "");
   };
 
-  const handlePromoteStudent = async (studentId: string) => {
-    const nextClassId = studentClassDrafts[studentId];
-    if (!nextClassId) return;
-    setPromotingStudentId(studentId);
-    setPromoteMessage("");
-
-    const response = await fetch("/api/management/update-student-class", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student_id: studentId, class_id: nextClassId }),
-    });
-
-    const payload = (await response.json().catch(() => ({}))) as { error?: string; student?: StudentAccount };
-    if (!response.ok) {
-      setPromoteMessage(payload.error ?? "Gagal memperbarui kelas murid.");
-      setPromotingStudentId("");
+  const handleBulkPromoteClass = async () => {
+    if (!bulkClassId) {
+      setBulkPromoteMessage("Pilih kelas sumber terlebih dahulu.");
       return;
     }
 
+    const sourceClass = classes.find((item) => item.id === bulkClassId) ?? null;
+    const targetClassId = suggestNextClassId(bulkClassId, classes);
+    const targetClass = classes.find((item) => item.id === targetClassId) ?? null;
+
+    if (!sourceClass || !targetClass || targetClass.id === sourceClass.id) {
+      setBulkPromoteMessage("Kelas tujuan belum tersedia untuk kelas ini.");
+      return;
+    }
+
+    if (!confirm(`Naikkan semua murid dari ${sourceClass.name} ke ${targetClass.name}?`)) {
+      return;
+    }
+
+    setBulkPromoting(true);
+    setBulkPromoteMessage("");
+
+    const response = await fetch("/api/management/promote-class", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_class_id: sourceClass.id,
+        target_class_id: targetClass.id,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; moved_count?: number; target_class?: { name: string } };
+    if (!response.ok) {
+      setBulkPromoteMessage(payload.error ?? "Gagal memindahkan murid ke kelas berikutnya.");
+      setBulkPromoting(false);
+      return;
+    }
+
+    const promotedClassName = payload.target_class?.name ?? targetClass.name;
     setStudents((prev) =>
       prev.map((student) =>
-        student.id === studentId
+        student.class_id === sourceClass.id
           ? {
               ...student,
-              class_id: nextClassId,
-              class_name: payload.student?.class_name ?? student.class_name,
+              class_id: targetClass.id,
+              class_name: promotedClassName,
             }
           : student
       )
     );
-    setPromoteMessage("Kelas murid berhasil diperbarui.");
-    setPromotingStudentId("");
+    setBulkPromoteMessage(`Berhasil memindahkan ${payload.moved_count ?? 0} murid ke ${promotedClassName}.`);
+    setBulkPromoting(false);
   };
 
   const closeGradePanel = () => {
@@ -809,60 +812,74 @@ export default function TeacherDashboard() {
 
         {tab === "students" && (
           <div className="space-y-6">
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Reset Password & Naik Kelas Murid</h2>
-                <p className="text-white/40 text-sm mt-2">Kirim reset password atau pindahkan murid ke kelas berikutnya dari satu tempat.</p>
+                <p className="text-white/40 text-sm mt-2">Pilih satu kelas lalu naikkan seluruh murid sekaligus. Tidak perlu pindah satu per satu lagi.</p>
               </div>
               <div className="text-white/40 text-sm">{students.length} akun</div>
+            </div>
+
+            <div className="p-5 bg-white/5 border border-white/10 space-y-4">
+              <div className="flex flex-col xl:flex-row xl:items-end gap-4">
+                <div className="flex-1">
+                  <label className="block text-[10px] uppercase tracking-[0.24em] text-white/40 mb-2">Kelas Sumber</label>
+                  <select
+                    className="w-full bg-white/5 border border-white/10 text-white text-sm px-4 py-3 outline-none focus:border-[#FF2D2D]/50"
+                    value={bulkClassId}
+                    onChange={(e) => setBulkClassId(e.target.value)}
+                  >
+                    <option value="">Pilih kelas...</option>
+                    {classes.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 p-4 border border-white/10 bg-black/20">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/35">Tujuan otomatis</p>
+                  <p className="mt-2 font-bold text-white">
+                    {bulkSourceClass && bulkTargetClass
+                      ? `${bulkSourceClass.name} -> ${bulkTargetClass.name}`
+                      : "Pilih kelas untuk melihat tujuan kenaikan"}
+                  </p>
+                  <p className="mt-1 text-xs text-white/45">
+                    {bulkTargetClass
+                      ? `${bulkTargetClass.grade} ${bulkTargetClass.section} akan menjadi tujuan bulk promote.`
+                      : "Jika kelas terakhir belum punya tujuan, murid akan tetap di kelas yang sama."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBulkPromoteClass}
+                  disabled={bulkPromoting || !bulkClassId || !bulkTargetClass || bulkTargetClass.id === bulkSourceClass?.id}
+                  className="px-5 py-3 bg-green-600/20 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50"
+                >
+                  {bulkPromoting ? "Memindahkan..." : "Naikkan Semua"}
+                </button>
+              </div>
+              {bulkPromoteMessage && (
+                <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{bulkPromoteMessage}</div>
+              )}
             </div>
 
             {resetMessage && (
               <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{resetMessage}</div>
             )}
 
-            {promoteMessage && (
-              <div className="p-4 bg-white/5 border border-white/10 text-sm text-white/70">{promoteMessage}</div>
-            )}
-
-            {students.length === 0 ? (
+            {visibleStudents.length === 0 ? (
               <div className="p-12 bg-white/5 border border-white/10 text-center text-white/40">
                 <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p>Belum ada akun murid yang tersedia.</p>
+                <p>Belum ada akun murid untuk kelas ini.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {students.map((student) => (
+                {visibleStudents.map((student) => (
                   <div key={student.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 bg-white/5 border border-white/10">
                     <div className="flex-1">
                       <p className="font-bold text-white">{student.full_name ?? student.username ?? "Tanpa Nama"}</p>
                       <p className="text-white/40 text-xs font-mono">{student.email ?? "-"} · {student.class_name ?? "Tanpa Kelas"}</p>
-                      <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto] max-w-2xl">
-                        <select
-                          value={studentClassDrafts[student.id] ?? student.class_id ?? ""}
-                          onChange={(e) => setStudentClassDrafts((prev) => ({ ...prev, [student.id]: e.target.value }))}
-                          className="bg-white/5 border border-white/10 text-white text-xs px-3 py-2 outline-none focus:border-[#FF2D2D]/50"
-                        >
-                          <option value="">Pilih Kelas</option>
-                          {classes.map((cls) => (
-                            <option key={cls.id} value={cls.id}>
-                              {cls.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => handlePromoteStudent(student.id)}
-                          disabled={promotingStudentId === student.id || !(studentClassDrafts[student.id] ?? student.class_id)}
-                          className="px-4 py-2 bg-green-600/20 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50"
-                        >
-                          {promotingStudentId === student.id ? "Menyimpan..." : (
-                            <span className="inline-flex items-center gap-2">
-                              <ArrowRight className="w-4 h-4" /> Naik Kelas
-                            </span>
-                          )}
-                        </button>
-                      </div>
                     </div>
                     <div className="flex flex-col gap-2">
                       <button
@@ -873,6 +890,9 @@ export default function TeacherDashboard() {
                       >
                         {resettingEmail === student.email ? "Sending..." : "Reset Password"}
                       </button>
+                      <span className="px-3 py-2 bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/50 text-center">
+                        {student.class_name ?? "Tanpa Kelas"}
+                      </span>
                     </div>
                   </div>
                 ))}

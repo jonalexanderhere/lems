@@ -16,6 +16,7 @@ Fokus aplikasi ini adalah:
 - Menampilkan kuis yang belum dikerjakan.
 - Menampilkan kelas yang sedang diikuti.
 - Menampilkan lencana otomatis yang terbuka dari capaian belajar.
+- Menampilkan ringkasan lencana aktif dari hasil belajar nyata.
 
 ### 2. Dashboard Guru
 - Mengelola tugas, kuis, kelas, dan hasil penilaian.
@@ -29,33 +30,38 @@ Fokus aplikasi ini adalah:
 - Melihat daftar siswa, XP, kelas, dan data akun lainnya.
 - Melakukan promosi kelas per tahun ajaran.
 
-### 4. AI Tutor
+### 4. Landing Page Progress
+- Menampilkan semua rank XP yang bisa dicapai.
+- Menampilkan katalog badge dan keluarga lencana yang tersedia.
+- Menggunakan image badge terpisah agar tampilan lebih mudah dipahami.
+
+### 5. AI Tutor
 - Tutor percakapan untuk networking, Cisco, Linux, cybersecurity, dan topik umum.
 - Menjawab dengan bahasa yang sama seperti user.
 - Memberi jawaban praktis, step-by-step, dan contoh konfigurasi.
 - Punya fallback lokal untuk topik populer seperti VLAN, OSPF, SSH, dan OS.
 
-### 5. Leaderboard XP
+### 6. Leaderboard XP
 - Menampilkan peringkat siswa berdasarkan XP.
 - Menampilkan rank, emblem, target tier berikutnya, dan badge ringkas.
 - Home page juga menampilkan leaderboard singkat top 5.
 
-### 6. Absensi
+### 7. Absensi
 - Absensi wajah.
 - Rekap absensi per tanggal dan sesi.
 - Sinkron dengan waktu lokal Asia/Jakarta.
 
-### 7. Tugas dan Kuis
+### 8. Tugas dan Kuis
 - Submission tugas dengan file atau link.
 - Auto grading untuk tugas tertentu.
 - Kuis publik / kelas tertentu.
 - Hasil kuis tersimpan untuk progres siswa.
 
-### 8. Sertifikasi
+### 9. Sertifikasi
 - Quiz sertifikasi untuk mengukur pemahaman dasar.
 - Sertifikat bisa diunduh dalam bentuk PDF.
 
-### 9. Lencana Otomatis
+### 10. Lencana Otomatis
 - Badge muncul otomatis berdasarkan capaian nyata.
 - Sistem badge sekarang mendukung sampai 1000 milestone otomatis.
 - Badge bisa terbuka dari:
@@ -91,6 +97,11 @@ Ada juga badge khusus seperti:
 - `Pioneer`
 - badge sertifikasi
 - badge rank tertentu
+
+### 11. Kenaikan Kelas Massal
+- Guru bisa memilih satu kelas dan menaikkan seluruh murid sekaligus.
+- Dropdown kelas sekarang memakai route server khusus agar data lebih konsisten.
+- Ada preview kelas tujuan sebelum aksi dijalankan.
 
 ## AI Tutor
 
@@ -147,8 +158,10 @@ AI Tutor didesain untuk membantu siswa belajar tanpa terasa kaku.
 - `/api/management/accounts` - Data akun admin/guru
 - `/api/management/users` - Data siswa
 - `/api/management/grade-submission` - Nilai submission
+- `/api/management/promote-class` - Naikkan seluruh murid dari satu kelas ke kelas berikutnya
 - `/api/attendance/record` - Simpan absensi
 - `/api/achievements/me` - Statistik dan badge otomatis user login
+- `/api/classes` - Daftar kelas aman untuk dashboard guru/admin
 
 ## Environment Variables
 
@@ -204,6 +217,8 @@ Jika kamu ingin deploy database dari nol atau sinkronisasi schema, mulai dari fi
 - Leaderboard dan halaman utama dibuat dinamis supaya data XP terbaru langsung terbaca.
 - Sistem env Supabase mendukung fallback nama variabel agar lebih aman di deployment.
 - Lencana otomatis tidak lagi bergantung pada kolom `badges` di `profiles`.
+- Landing page sekarang menampilkan roadmap rank dan badge library secara visual.
+- Dashboard guru punya tombol kenaikan kelas massal agar tidak perlu pindah murid satu per satu.
 - AI Tutor punya fallback lokal supaya tetap berguna saat provider AI sedang bermasalah.
 
 ## Kontribusi
@@ -216,4 +231,3 @@ Kalau mau menambah fitur baru:
 ## Lisensi
 
 Proyek ini dipakai untuk kebutuhan pengembangan internal Netvora Academy.
-

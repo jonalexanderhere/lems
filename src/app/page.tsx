@@ -8,6 +8,8 @@ import { Analytics } from "@/components/Analytics";
 import { AITutorTeaser } from "@/components/AITutorTeaser";
 import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { TrustBadges } from "@/components/TrustBadges";
+import { RankRoadmap } from "@/components/RankRoadmap";
+import { BadgeLibrary } from "@/components/BadgeLibrary";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { normalizeXp } from "@/utils/rank";
 import { connection } from "next/server";
@@ -36,6 +38,8 @@ export default async function Home() {
       <TrustBadges />
       <AboutNetvora />
       <AITutorTeaser />
+      <RankRoadmap />
+      <BadgeLibrary />
       <LiveLeaderboard leaders={rankedLeaders} />
       <Analytics />
       <Awards />

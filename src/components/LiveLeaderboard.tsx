@@ -1,10 +1,11 @@
 "use client";
 
-import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
+import { Trophy, Hexagon } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
+import { BadgeMark } from "@/components/BadgeMark";
 
 type Leader = {
   id: string;
@@ -91,7 +92,7 @@ export function LiveLeaderboard({ leaders }: { leaders: Leader[] }) {
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
-                              <BadgeCheck className="w-3 h-3" />
+                              <BadgeMark badge={badge} size={14} />
                               {badge.label}
                             </span>
                           ))}

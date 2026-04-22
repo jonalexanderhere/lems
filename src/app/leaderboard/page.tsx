@@ -1,12 +1,13 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
+import { Trophy, Hexagon } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, normalizeXp, xpRankClass } from "@/utils/rank";
 import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
+import { BadgeMark } from "@/components/BadgeMark";
 import { connection } from "next/server";
 
 export const metadata = {
@@ -127,7 +128,7 @@ export default async function LeaderboardPage() {
                         <div className="flex flex-wrap gap-2 mt-3">
                           {badges.map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
-                              <BadgeCheck className="w-3 h-3" />
+                              <BadgeMark badge={badge} size={14} />
                               {badge.label}
                             </span>
                           ))}

@@ -5,10 +5,11 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, ClipboardList, Zap, Camera, ChevronRight, BadgeCheck } from "lucide-react";
+import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
 import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
 import { RankEmblem } from "@/components/RankEmblem";
 import { badgeToneClass, type BadgeChip } from "@/utils/badges";
+import { BadgeMark } from "@/components/BadgeMark";
 
 type ClassInfo = { id: string; name: string; grade: string; section: string };
 type Profile = {
@@ -212,7 +213,7 @@ export default function DashboardPage() {
                   <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Lencana Otomatis</p>
                   <p className="mt-1 text-sm font-bold text-white">{achievementBadges.length.toLocaleString("id-ID")} lencana aktif</p>
                 </div>
-                <BadgeCheck className="w-5 h-5 text-[#FF2D2D]" />
+                <BadgeMark badge={{ key: "special:pioneer", label: "Lencana Otomatis", tone: "special" }} size={22} />
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
                 {achievementBadges.length === 0 ? (
@@ -222,7 +223,7 @@ export default function DashboardPage() {
                 ) : (
                   achievementBadges.slice(0, 8).map((badge) => (
                     <span key={badge.key} className={`inline-flex items-center gap-2 px-3 py-2 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
-                      <BadgeCheck className="w-3.5 h-3.5" />
+                      <BadgeMark badge={badge} size={16} />
                       {badge.label}
                     </span>
                   ))

@@ -20,7 +20,7 @@ export type XpProgress = {
   progress: number;
 };
 
-const XP_TIERS: XpRank[] = [
+export const XP_TIERS: XpRank[] = [
   { label: "Sovereign", tone: "gold", minXp: 20000 },
   { label: "Mythic", tone: "violet", minXp: 12000 },
   { label: "Commander", tone: "emerald", minXp: 7000 },

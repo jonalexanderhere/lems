@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { badgeToneClass, deriveBadges, type BadgeChip } from "@/utils/badges";
-import { Camera, Loader2, BadgeCheck } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { BadgeMark } from "@/components/BadgeMark";
 
 type ProfileStudioProps = {
   userId: string;
@@ -105,7 +106,7 @@ export function ProfileStudio({ userId, fullName, username, avatarUrl, xp, badge
             ) : (
               visibleBadges.map((badge: BadgeChip) => (
                 <span key={badge.key} className={`inline-flex items-center gap-2 px-3 py-2 border text-xs uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>
-                  <BadgeCheck className="w-3.5 h-3.5" />
+                  <BadgeMark badge={badge} size={16} />
                   {badge.label}
                 </span>
               ))

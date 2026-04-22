@@ -88,8 +88,13 @@ export default function AdminDashboard() {
   }, [supabase]);
 
   const fetchClasses = useCallback(async () => {
-    const { data: cls } = await supabase.from("classes").select("id, name, grade, section").order("grade").order("section");
-    if (!cls) { setClasses([]); return; }
+    const response = await fetch("/api/classes");
+    if (!response.ok) {
+      setClasses([]);
+      return;
+    }
+    const payload = (await response.json()) as { classes?: ClassData[] };
+    const cls = payload.classes ?? [];
     // Count students per class
     const { data: counts } = await supabase.from("profiles").select("class_id").not("class_id", "is", null);
     const countMap: Record<string, number> = {};

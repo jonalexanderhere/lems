@@ -2,13 +2,14 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { notFound } from "next/navigation";
-import { Hexagon, BadgeCheck, Trophy, ArrowLeft } from "lucide-react";
+import { Hexagon, Trophy, ArrowLeft } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
 import { getAchievementStats } from "@/utils/achievements";
 import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
+import { BadgeMark } from "@/components/BadgeMark";
 
 type ProfilePageProps = {
   params: Promise<{ id: string }>;
@@ -110,15 +111,15 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
           </h2>
           
           {badges.length === 0 ? (
-            <div className="p-12 text-center text-white/30 border border-white/5 bg-white/[0.02]">
-              <BadgeCheck className="w-12 h-12 mx-auto mb-4 opacity-20" />
+              <div className="p-12 text-center text-white/30 border border-white/5 bg-white/[0.02]">
+              <BadgeMark badge={{ key: "special:pioneer", label: "Belum ada lencana", tone: "special" }} size={48} className="mx-auto mb-4" />
               <p className="text-sm font-bold uppercase tracking-widest">Belum ada lencana</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {badges.map((badge) => (
                 <div key={badge.key} className={`p-6 border text-center ${badgeToneClass(badge.tone)} bg-opacity-10 border-opacity-30 flex flex-col items-center justify-center h-full`}>
-                  <BadgeCheck className="w-8 h-8 mb-3 opacity-80" />
+                  <BadgeMark badge={badge} size={40} className="mb-3" />
                   <p className="font-bold text-sm uppercase tracking-wider">{badge.label}</p>
                 </div>
               ))}

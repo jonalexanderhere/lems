@@ -9,6 +9,7 @@ import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, xpRankClass } from "@/utils/rank";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
+import { BadgeMark } from "@/components/BadgeMark";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -137,6 +138,7 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
                         <div className="mt-2 flex flex-wrap gap-2">
                           {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }, 4).map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>
+                              <BadgeMark badge={badge} size={14} />
                               {badge.label}
                             </span>
                           ))}

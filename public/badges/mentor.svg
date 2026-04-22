@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="24" y1="24" x2="230" y2="234" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6" />
+      <stop offset="1" stop-color="#3B82F6" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="60" fill="#08090F" />
+  <path d="M128 26L216 77V179L128 230L40 179V77L128 26Z" fill="url(#g)" />
+  <path d="M128 44L200 86V170L128 212L56 170V86L128 44Z" fill="#0B0C12" fill-opacity="0.92" />
+  <circle cx="128" cy="122" r="34" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.18)" stroke-width="2" />
+  <text x="128" y="134" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800" fill="#E0E7FF">M</text>
+  <text x="128" y="192" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" letter-spacing="2" fill="#FFFFFF" fill-opacity="0.82">MENTOR</text>
+</svg>
