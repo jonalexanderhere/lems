@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getAttendanceWindow, getLocalDateString, isValidTimeRange, normalizeTimeValue, setTimePart, splitTimeValue } from "@/utils/attendance";
+import { getAttendanceWindow, getLocalDateString, isValidTimeRange, normalizeTimeValue } from "@/utils/attendance";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -30,9 +30,6 @@ type ReportSubmission = {
   assignments: { title: string; class_id: string | null; classes: { name: string } | null } | null;
   profiles: { full_name: string | null; username: string | null } | null;
 };
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"));
 
 function firstItem<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
@@ -821,49 +818,23 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Mulai</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      className={inputCls}
-                      value={splitTimeValue(attStartTime).hour}
-                      onChange={(e) => setAttStartTime(setTimePart(attStartTime, "hour", e.target.value))}
-                    >
-                      {HOUR_OPTIONS.map((hour) => (
-                        <option key={hour} value={hour}>{hour}</option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputCls}
-                      value={splitTimeValue(attStartTime).minute}
-                      onChange={(e) => setAttStartTime(setTimePart(attStartTime, "minute", e.target.value))}
-                    >
-                      {MINUTE_OPTIONS.map((minute) => (
-                        <option key={minute} value={minute}>{minute}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <input
+                    type="time"
+                    step={60}
+                    className={inputCls}
+                    value={normalizeTimeValue(attStartTime)}
+                    onChange={(e) => setAttStartTime(normalizeTimeValue(e.target.value))}
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Selesai</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      className={inputCls}
-                      value={splitTimeValue(attEndTime).hour}
-                      onChange={(e) => setAttEndTime(setTimePart(attEndTime, "hour", e.target.value))}
-                    >
-                      {HOUR_OPTIONS.map((hour) => (
-                        <option key={hour} value={hour}>{hour}</option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputCls}
-                      value={splitTimeValue(attEndTime).minute}
-                      onChange={(e) => setAttEndTime(setTimePart(attEndTime, "minute", e.target.value))}
-                    >
-                      {MINUTE_OPTIONS.map((minute) => (
-                        <option key={minute} value={minute}>{minute}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <input
+                    type="time"
+                    step={60}
+                    className={inputCls}
+                    value={normalizeTimeValue(attEndTime)}
+                    onChange={(e) => setAttEndTime(normalizeTimeValue(e.target.value))}
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Kelas</span>
