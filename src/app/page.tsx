@@ -1,4 +1,3 @@
-import { createClient } from "@/utils/supabase/server";
 import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
 import { Statement } from "@/components/Statement";
@@ -9,10 +8,11 @@ import { Analytics } from "@/components/Analytics";
 import { AITutorTeaser } from "@/components/AITutorTeaser";
 import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { TrustBadges } from "@/components/TrustBadges";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { normalizeXp } from "@/utils/rank";
 
 export default async function Home() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Fetch real leaderboard (top 5 by XP)
   const { data: leaders } = await supabase

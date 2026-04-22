@@ -1,6 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { Trophy, Hexagon, BadgeCheck } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getLeaderboardRank, getXpProgress, getXpRank, leaderboardRankClass, normalizeXp, xpRankClass } from "@/utils/rank";
@@ -16,7 +16,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: leaders } = await supabase
     .from("profiles")
     .select("id, username, full_name, xp, avatar_url, badges, class_id, role")
