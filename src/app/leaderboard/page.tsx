@@ -84,7 +84,7 @@ export default async function LeaderboardPage() {
                 const leaderboardRank = getLeaderboardRank(rank);
                 const xpRank = getXpRank(user.xp);
                 const xpProgress = getXpProgress(user.xp);
-                const badges = deriveBadges({ xp: user.xp, badges: [] });
+                const badges = deriveBadges({ xp: user.xp, badges: [] }, 4);
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
                 const className = user.class_id ? classMap.get(user.class_id) ?? "-" : "-";

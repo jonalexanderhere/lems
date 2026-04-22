@@ -10,12 +10,12 @@ type Message = {
 };
 
 const suggestions = [
-  "How do I configure a static route on Cisco IOS?",
-  "Explain the OSI model layers",
-  "How to set up SSH on a Linux server?",
-  "What is the difference between TCP and UDP?",
-  "How does OSPF work?",
-  "How to set up a VLAN on a Cisco switch?",
+  "Contoh dari VLAN",
+  "Jelaskan OSI layer 3",
+  "Cara setup SSH di Linux",
+  "Bedanya TCP dan UDP",
+  "Cara kerja OSPF",
+  "Bantu tutorial OS",
 ];
 
 export default function AITutorPage() {
@@ -152,7 +152,7 @@ export default function AITutorPage() {
                 Your AI Mentor.
               </h2>
               <p className="text-white/50 text-lg mb-12 max-w-lg">
-                Ask anything about networking, Cisco, Linux, or cybersecurity.
+                Tanya apa saja tentang networking, Cisco, Linux, cybersecurity, atau tugas sekolah.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full">
                 {suggestions.map((s) => (
@@ -204,12 +204,12 @@ export default function AITutorPage() {
         {/* Input */}
         <div className="border-t border-white/10 px-4 md:px-12 py-4 shrink-0">
           <div className="max-w-4xl mx-auto flex gap-3 items-end">
-            <textarea
+              <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about networking, Cisco, Linux, security..."
+              placeholder="Contoh: contoh VLAN, jelaskan OSI, atau bantu tutorial OS"
               rows={1}
               className="flex-1 bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/20 outline-none focus:border-[#FF2D2D]/50 transition-colors resize-none max-h-32 font-sans text-sm"
               style={{ lineHeight: "1.6" }}

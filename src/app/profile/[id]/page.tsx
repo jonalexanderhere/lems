@@ -1,10 +1,11 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { notFound } from "next/navigation";
 import { Hexagon, BadgeCheck, Trophy, ArrowLeft } from "lucide-react";
 import { badgeToneClass, deriveBadges } from "@/utils/badges";
 import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
+import { getAchievementStats } from "@/utils/achievements";
 import Link from "next/link";
 import Image from "next/image";
 import { RankEmblem } from "@/components/RankEmblem";
@@ -15,7 +16,7 @@ type ProfilePageProps = {
 
 export default async function PublicProfilePage({ params }: ProfilePageProps) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -25,7 +26,8 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
 
   if (!profile) notFound();
 
-  const badges = deriveBadges({ xp: profile.xp ?? 0, badges: [] });
+  const stats = await getAchievementStats(supabase, id);
+  const badges = deriveBadges({ xp: profile.xp ?? 0, role: profile.role, stats }, 12);
   const xpRank = getXpRank(profile.xp ?? 0);
   const xpProgress = getXpProgress(profile.xp ?? 0);
   const displayName = profile.username ?? profile.full_name ?? "Anonymous";

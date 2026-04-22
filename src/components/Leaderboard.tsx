@@ -135,7 +135,7 @@ export function Leaderboard({ leaders = [] }: { leaders?: Leader[] }) {
                           Target: {xpProgress.nextLabel && xpProgress.nextMinXp !== null ? `${xpProgress.nextLabel} (${xpProgress.nextMinXp.toLocaleString("id-ID")} XP)` : "Tier maksimum"}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }).map((badge) => (
+                          {deriveBadges({ xp: user.xp, badges: user.badges ?? [] }, 4).map((badge) => (
                             <span key={badge.key} className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${badgeToneClass(badge.tone)}`}>
                               {badge.label}
                             </span>

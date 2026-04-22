@@ -64,13 +64,30 @@ function createStreamingTextResponse(text: string) {
   });
 }
 
-const SYSTEM_PROMPT = `You are Netvora Intelligence, an expert AI tutor specialized in:
+const SYSTEM_PROMPT = `You are Netvora Intelligence, a practical AI tutor for students.
+
+Your strengths:
 - Networking, Cisco IOS, Linux Server Administration, cybersecurity, programming, school work, productivity, and general knowledge.
 
-Respond in a clear, concise, practical way. Use code blocks (\`\`\`) for configs and commands when useful.
-Always respond in the same language as the user (Indonesian or English).
-Answer the user's question directly, even if it is outside networking. Do not refuse or redirect unless the request is unsafe.
-If uncertain, say so briefly and still provide the most helpful best-effort answer.`;
+Response style:
+- Match the user's language.
+- Be helpful, concrete, and easy to follow.
+- If the question is vague, answer with a short starter explanation and ask 1 focused follow-up question.
+- Never respond with only "kirim konteks" or similarly empty guidance.
+- Use code blocks for commands/configs when useful.
+- Prefer step-by-step guidance, examples, and troubleshooting notes.
+- If the user asks for a topic example, give the example first, then the explanation.
+- If uncertain, say so briefly and still give the best helpful answer.`;
+
+function isLowContextQuery(query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return true;
+  if (/^(halo|hai|hello|hi|help|tolong|bantu)$/i.test(normalized)) return true;
+  if (normalized.length <= 18 && !/(vlan|ospf|ssh|linux|cisco|router|switch|tcp|udp|osi|subnet|routing|ip|server|quiz|tugas)/i.test(normalized)) {
+    return true;
+  }
+  return /(?:tutorial\s+os|bantu\s+tutorial|contoh\s+dari\s+vlan)/i.test(normalized);
+}
 
 import { OpenRouter } from "@openrouter/sdk";
 
@@ -94,6 +111,15 @@ export async function POST(req: NextRequest) {
     return createSseResponse(
       "Konfigurasi server belum lengkap. Hubungi administrator."
     );
+  }
+
+  const lastUserMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "user")
+    ?.content?.trim() ?? "";
+
+  if (isLowContextQuery(lastUserMessage)) {
+    return createStreamingTextResponse(buildLocalAnswer(lastUserMessage));
   }
 
   try {
@@ -168,6 +194,45 @@ export async function POST(req: NextRequest) {
 // LOCAL KNOWLEDGE BASE — fallback when AI unavailable
 // =====================================================
 function buildLocalAnswer(query: string): string {
+  if (/^(halo|hai|hello|hi|help|tolong|bantu)$/i.test(query.trim())) {
+    return `Halo! Saya bisa bantu jelaskan materi jaringan, Linux, Cisco, cybersecurity, tugas sekolah, atau konsep teknis lain.
+
+Coba tulis salah satu format ini:
+- "contoh VLAN"
+- "jelaskan OSI layer 3"
+- "cara setup SSH di Linux"
+- "bedanya TCP dan UDP"
+
+Kalau kamu mau, kirim topik yang ingin dipelajari, nanti saya jelaskan langkah demi langkah.`;
+  }
+
+  if (/tutorial\s+os/i.test(query) || /bantu\s+tutorial/i.test(query)) {
+    return `Kalau yang kamu maksud tutorial OS, kita bisa mulai dari dua arah:
+
+1. OS sebagai operating system
+   - Fungsi: mengelola hardware, aplikasi, dan user
+   - Contoh: Windows, Linux, macOS
+
+2. Struktur dasar OS
+   - Kernel
+   - Shell / interface
+   - File system
+   - Process management
+
+Contoh singkat:
+\`\`\`
+User -> Application -> Operating System -> Hardware
+\`\`\`
+
+Kalau mau, sebutkan OS yang kamu maksud:
+- Windows
+- Linux
+- Android
+- macOS
+
+Saya bisa lanjutkan dengan tutorial yang lebih spesifik.`;
+  }
+
   if (/vlan|virtual lan/i.test(query)) {
     return `Berikut cara setup VLAN pada Cisco Switch:
 

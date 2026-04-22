@@ -5,9 +5,10 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
+import { BookOpen, ClipboardList, Zap, Camera, ChevronRight, BadgeCheck } from "lucide-react";
 import { getXpProgress, getXpRank, xpRankClass } from "@/utils/rank";
 import { RankEmblem } from "@/components/RankEmblem";
+import { badgeToneClass, type BadgeChip } from "@/utils/badges";
 
 type ClassInfo = { id: string; name: string; grade: string; section: string };
 type Profile = {
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [submissions, setSubmissions] = useState<Set<string>>(new Set());
   const [attempts, setAttempts] = useState<Set<string>>(new Set());
+  const [achievementBadges, setAchievementBadges] = useState<BadgeChip[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -117,6 +119,14 @@ export default function DashboardPage() {
         supabase.from("quiz_attempts").select("quiz_id").eq("student_id", user.id),
       ]);
 
+      const achievementsResponse = await fetch("/api/achievements/me");
+      if (achievementsResponse.ok) {
+        const achievements = await achievementsResponse.json() as { badges?: BadgeChip[] };
+        setAchievementBadges(achievements.badges ?? []);
+      } else {
+        setAchievementBadges([]);
+      }
+
       setAssignments(asgn ?? []);
       setQuizzes(qz ?? []);
       setCourses(crs ?? []);
@@ -195,6 +205,29 @@ export default function DashboardPage() {
               <p className="text-white/35 text-xs mt-3">
                 Kamu butuh {remainingXpLabel} untuk naik ke tier berikutnya.
               </p>
+            </div>
+            <div className="mt-4 max-w-2xl p-5 bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Lencana Otomatis</p>
+                  <p className="mt-1 text-sm font-bold text-white">{achievementBadges.length.toLocaleString("id-ID")} lencana aktif</p>
+                </div>
+                <BadgeCheck className="w-5 h-5 text-[#FF2D2D]" />
+              </div>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {achievementBadges.length === 0 ? (
+                  <span className="px-3 py-2 text-[10px] uppercase tracking-[0.24em] text-white/30 border border-white/10 bg-white/5">
+                    Lencana otomatis muncul setelah kamu menyelesaikan lesson, quiz, assignment, attendance, course, dan XP milestone.
+                  </span>
+                ) : (
+                  achievementBadges.slice(0, 8).map((badge) => (
+                    <span key={badge.key} className={`inline-flex items-center gap-2 px-3 py-2 border text-[10px] uppercase tracking-[0.24em] ${badgeToneClass(badge.tone)}`}>
+                      <BadgeCheck className="w-3.5 h-3.5" />
+                      {badge.label}
+                    </span>
+                  ))
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">

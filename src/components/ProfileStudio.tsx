@@ -22,7 +22,7 @@ export function ProfileStudio({ userId, fullName, username, avatarUrl, xp, badge
   const [error, setError] = useState("");
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(avatarUrl);
 
-  const visibleBadges = deriveBadges({ xp, role, badges });
+  const visibleBadges = deriveBadges({ xp, role, badges }, 12);
 
   const initials = (fullName ?? username ?? "U")
     .split(" ")
