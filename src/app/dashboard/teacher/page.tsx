@@ -63,6 +63,7 @@ export default function TeacherDashboard() {
   const [attStartTime, setAttStartTime] = useState("00:00");
   const [attEndTime, setAttEndTime] = useState("23:59");
   const [sessionId, setSessionId] = useState("");
+  const [sessionDirty, setSessionDirty] = useState(false);
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
   const [attSaving, setAttSaving] = useState(false);
   const [clockNow, setClockNow] = useState(() => Date.now());
@@ -260,6 +261,7 @@ export default function TeacherDashboard() {
     const run = async () => {
       if (tab !== "attendance" || !attDate || !attClassId) {
         setSessionId("");
+        setSessionDirty(false);
         if (!attClassId) {
           setAttStartTime("07:00");
           setAttEndTime("14:00");
@@ -274,10 +276,12 @@ export default function TeacherDashboard() {
         setSessionId(sess.id);
         setAttStartTime(normalizeTimeValue(sess.start_time));
         setAttEndTime(normalizeTimeValue(sess.end_time));
+        setSessionDirty(false);
       } else {
         setSessionId("");
         setAttStartTime("07:00");
         setAttEndTime("14:00");
+        setSessionDirty(false);
       }
     };
 
@@ -340,6 +344,12 @@ export default function TeacherDashboard() {
     };
   }, [tab, attDate, attClassId, attStartTime, attEndTime, supabase]);
 
+  const applySessionPreset = (startTime: string, endTime: string) => {
+    setAttStartTime(normalizeTimeValue(startTime));
+    setAttEndTime(normalizeTimeValue(endTime));
+    setSessionDirty(true);
+  };
+
   const handleSaveAttendance = async () => {
     setAttSaving(true);
     const records = Object.entries(attRecords).map(([student_id, status]) => ({
@@ -383,6 +393,7 @@ export default function TeacherDashboard() {
       } else if (savedSession?.id) {
         setSessionId(savedSession.id);
       }
+      setSessionDirty(false);
       alert("Sesi absensi berhasil ditetapkan untuk kelas ini.");
     }
     setAttSaving(false);
@@ -823,7 +834,10 @@ export default function TeacherDashboard() {
                     step={60}
                     className={inputCls}
                     value={normalizeTimeValue(attStartTime)}
-                    onChange={(e) => setAttStartTime(normalizeTimeValue(e.target.value))}
+                    onChange={(e) => {
+                      setAttStartTime(normalizeTimeValue(e.target.value));
+                      setSessionDirty(true);
+                    }}
                   />
                 </div>
                 <div className="flex flex-col">
@@ -833,7 +847,10 @@ export default function TeacherDashboard() {
                     step={60}
                     className={inputCls}
                     value={normalizeTimeValue(attEndTime)}
-                    onChange={(e) => setAttEndTime(normalizeTimeValue(e.target.value))}
+                    onChange={(e) => {
+                      setAttEndTime(normalizeTimeValue(e.target.value));
+                      setSessionDirty(true);
+                    }}
                   />
                 </div>
                 <div className="flex flex-col">
@@ -859,12 +876,45 @@ export default function TeacherDashboard() {
                     <span>Mulai {attendancePreview?.startLabel ?? "--:--"}</span>
                     <span>Selesai {attendancePreview?.endLabel ?? "--:--"}</span>
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applySessionPreset("07:00", "14:00")}
+                      className="px-3 py-1.5 border border-white/10 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-widest hover:border-white/30 hover:text-white transition-colors"
+                    >
+                      Preset 07-14
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applySessionPreset("12:00", "16:00")}
+                      className="px-3 py-1.5 border border-white/10 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-widest hover:border-white/30 hover:text-white transition-colors"
+                    >
+                      Preset 12-16
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const sess = await fetchAttendanceSession();
+                        if (sess) {
+                          setAttStartTime(normalizeTimeValue(sess.start_time));
+                          setAttEndTime(normalizeTimeValue(sess.end_time));
+                          setSessionDirty(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 border border-[#FF2D2D]/20 bg-[#FF2D2D]/10 text-[#FF2D2D] text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-colors"
+                    >
+                      Muat Sesi
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-white/30 uppercase tracking-widest">
+                    {sessionDirty ? "Perubahan belum disimpan" : sessionId ? "Sesi aktif siap diedit" : "Belum ada sesi tersimpan"}
+                  </p>
                 </div>
                 <div className="flex flex-col xl:col-span-5">
                   <span className="text-[10px] opacity-0 mb-1">.</span>
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={handleSaveSession} disabled={attSaving} className="px-6 py-2.5 bg-white/10 text-white border border-white/20 font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-                      {attSaving ? "..." : "Set Sesi"}
+                      {attSaving ? "..." : sessionId ? "Simpan Perubahan" : "Set Sesi"}
                     </button>
                     <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
                       {attSaving ? "..." : "Simpan"}

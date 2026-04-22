@@ -98,7 +98,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-[#FF2D2D] font-mono text-sm uppercase tracking-widest mb-2">Dashboard Siswa</p>
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tighter leading-none" style={{ fontFamily: "var(--font-grotesk)" }}>
-              Halo, {profile?.full_name?.split(" ")[0] ?? "Engineer"}.
+              Halo, {profile?.username ?? profile?.full_name?.split(" ")[0] ?? "Pengguna"}.
             </h1>
             <div className="flex items-center gap-3 mt-4">
               <span className={`px-3 py-1 border text-xs font-black uppercase tracking-widest ${profile?.classes ? "bg-[#FF2D2D]/10 border-[#FF2D2D]/20 text-[#FF2D2D]" : "bg-white/5 border-white/10 text-white/30"}`}>
