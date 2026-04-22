@@ -30,6 +30,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
+  let resolvedClassId = profile.class_id;
+  const metadataClassId = typeof user.user_metadata?.class_id === "string" ? user.user_metadata.class_id : null;
+  if (!resolvedClassId && metadataClassId) {
+    const repairResult = await createAdminClient()
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          full_name: profile.full_name ?? user.user_metadata?.full_name ?? null,
+          username: profile.username ?? user.user_metadata?.username ?? null,
+          class_id: metadataClassId,
+          year_enrolled: Number.isFinite(Number(user.user_metadata?.year_enrolled))
+            ? Number(user.user_metadata.year_enrolled)
+            : null,
+        },
+        { onConflict: "id" }
+      );
+
+    if (!repairResult.error) {
+      resolvedClassId = metadataClassId;
+    }
+  }
+
   const body = (await req.json()) as RecordAttendanceBody;
   const status = body.status ?? "present";
   const date = body.date ?? getLocalDateString();
@@ -41,7 +64,7 @@ export async function POST(req: Request) {
 
   const attendanceRecord = {
     student_id: user.id,
-    class_id: profile.class_id,
+    class_id: resolvedClassId,
     date,
     status,
     method,
@@ -50,7 +73,7 @@ export async function POST(req: Request) {
 
   const attendanceLog = {
     student_id: user.id,
-    class_id: profile.class_id,
+    class_id: resolvedClassId,
     method,
     status,
     confidence_score: confidenceScore,

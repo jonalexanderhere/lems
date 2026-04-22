@@ -55,6 +55,72 @@ export default function AttendancePage() {
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
+  const autoScanTimerRef = useRef<number | null>(null);
+  const autoScanLockRef = useRef(false);
+
+  const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  const averageDescriptors = (descriptors: Float32Array[]) => {
+    const length = descriptors[0]?.length ?? 0;
+    const merged = new Float32Array(length);
+    descriptors.forEach((descriptor) => {
+      for (let i = 0; i < length; i += 1) {
+        merged[i] += descriptor[i];
+      }
+    });
+    for (let i = 0; i < length; i += 1) {
+      merged[i] /= descriptors.length;
+    }
+    return merged;
+  };
+
+  const captureDescriptorSample = useCallback(async () => {
+    if (!faceApi || !videoRef.current) return null;
+    const detection = await faceApi
+      .detectSingleFace(
+        videoRef.current,
+        new faceApi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.35 })
+      )
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (!detection) return null;
+
+    const canvas = canvasRef.current;
+    if (canvas && videoRef.current.videoWidth && videoRef.current.videoHeight) {
+      const dims = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
+      canvas.width = dims.width;
+      canvas.height = dims.height;
+      faceApi.matchDimensions(canvas, dims);
+      const resized = faceApi.resizeResults(detection, dims);
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        faceApi.draw.drawDetections(canvas, resized);
+        faceApi.draw.drawFaceLandmarks(canvas, resized);
+      }
+    }
+
+    return detection.descriptor;
+  }, [faceApi]);
+
+  const captureStableDescriptor = useCallback(
+    async (sampleCount = 3, delayMs = 140) => {
+      const samples: Float32Array[] = [];
+
+      for (let i = 0; i < sampleCount; i += 1) {
+        const descriptor = await captureDescriptorSample();
+        if (descriptor) samples.push(descriptor);
+        if (i < sampleCount - 1) {
+          await wait(delayMs);
+        }
+      }
+
+      if (samples.length === 0) return null;
+      if (samples.length === 1) return samples[0];
+      return averageDescriptors(samples);
+    },
+    [captureDescriptorSample]
+  );
 
   const fetchTodayRecords = useCallback(async () => {
     setLoadingRecords(true);
@@ -124,41 +190,47 @@ export default function AttendancePage() {
     };
   }, []);
 
-  async function verifyAttendance() {
-    if (!faceApi || !userId || !enrolledDescriptor) return;
-    if (status !== "capturing") {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-        setStatus("capturing");
-      } catch {
-        setStatus("error");
-        setMessage("Gagal mengakses kamera. Pastikan izin kamera sudah aktif.");
-        return;
-      }
+  const stopAutoScan = useCallback(() => {
+    if (autoScanTimerRef.current) {
+      window.clearInterval(autoScanTimerRef.current);
+      autoScanTimerRef.current = null;
     }
-    if (!streamRef.current) return;
+    autoScanLockRef.current = false;
+  }, []);
 
-    setStatus("scanning");
-    setMessage("Mencocokkan wajah dengan model AI...");
-    if (!faceApi || !videoRef.current) return;
-    const detection = await faceApi
-      .detectSingleFace(videoRef.current, new faceApi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-    if (!detection) { setStatus("error"); setMessage("Wajah tidak terdeteksi. Coba lagi dengan pencahayaan lebih baik."); return; }
-    const descriptor = detection.descriptor;
+  const stopCamera = useCallback(() => {
+    stopAutoScan();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, [stopAutoScan]);
+
+  const runAttendanceScan = useCallback(async (silent = false) => {
+    if (!faceApi || !userId || !enrolledDescriptor || !profile) return false;
+    if (!streamRef.current || !videoRef.current) return false;
+    if (!silent) {
+      setStatus("scanning");
+      setMessage("Mencocokkan wajah dengan model AI...");
+    }
+
+    const descriptor = await captureStableDescriptor(3, 120);
+    if (!descriptor) {
+      if (!silent) {
+        setStatus("capturing");
+        setMessage("Wajah belum terbaca jelas. Posisikan wajah lebih terang dan lurus ke kamera.");
+      }
+      return false;
+    }
+
     const distance = faceApi.euclideanDistance(enrolledDescriptor, descriptor);
-    const confidence = Math.max(0, Math.min(1, 1 - distance / 0.6));
+    const confidence = Math.max(0, Math.min(1, 1 - distance / 0.75));
 
-    if (distance > 0.55) {
-      setStatus("capturing");
-      setMessage(`Wajah terdeteksi (Conf: ${(confidence * 100).toFixed(0)}%), tapi kurang cocok. Posisikan wajah lebih pas...`);
-      return;
+    if (distance > 0.5) {
+      if (!silent) {
+        setStatus("capturing");
+        setMessage("Wajah terdeteksi, tapi belum stabil. Sistem akan mencoba lagi otomatis.");
+      }
+      return false;
     }
 
     const today = getLocalDateString();
@@ -175,31 +247,46 @@ export default function AttendancePage() {
 
     const payload = (await response.json().catch(() => ({}))) as { error?: string; warning?: string };
     if (!response.ok && response.status !== 207) {
-      setStatus("error");
-      setMessage(payload.error ?? "Gagal menyimpan absensi.");
-      return;
+      if (!silent) {
+        setStatus("error");
+        setMessage(payload.error ?? "Gagal menyimpan absensi.");
+      }
+      return false;
     }
 
     setStatus("success");
-    setMessage(`Absensi berhasil. Identitas terkonfirmasi: ${profile?.full_name ?? profile?.username}. Absensi tercatat.`);
+    setMessage(`Absensi berhasil. Identitas terkonfirmasi: ${profile?.full_name ?? profile?.username}.`);
     if (payload.warning) console.warn(payload.warning);
-    const ctx = canvasRef.current?.getContext("2d");
-    if (ctx && canvasRef.current) {
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    clearOverlay();
+    stopCamera();
     await fetchTodayRecords();
-  }
+    return true;
+  }, [captureStableDescriptor, enrolledDescriptor, faceApi, fetchTodayRecords, profile, stopCamera, userId]);
 
-  const stopCamera = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-  };
+  const startAutoScan = useCallback(() => {
+    if (!hasEnrollment || autoScanTimerRef.current) return;
+    autoScanTimerRef.current = window.setInterval(() => {
+      if (autoScanLockRef.current || status !== "capturing") return;
+      autoScanLockRef.current = true;
+      runAttendanceScan(true)
+        .catch((error) => console.error("Auto attendance scan failed:", error))
+        .finally(() => {
+          autoScanLockRef.current = false;
+        });
+    }, 1800);
+  }, [hasEnrollment, runAttendanceScan, status]);
 
-  const startCamera = async () => {
+  useEffect(() => {
+    if (!streamRef.current || !hasEnrollment || !modelsReady || status !== "capturing") {
+      stopAutoScan();
+      return;
+    }
+
+    startAutoScan();
+    return () => stopAutoScan();
+  }, [hasEnrollment, modelsReady, startAutoScan, status, stopAutoScan]);
+
+  const startCamera = useCallback(async () => {
     if (!modelsReady) {
       setStatus("loading-models");
       setMessage("Model AI masih dimuat...");
@@ -212,13 +299,14 @@ export default function AttendancePage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      setStatus("capturing");
-      setMessage(hasEnrollment ? "Kamera aktif. Klik verifikasi absensi." : "Kamera aktif. Klik daftarkan wajah.");
+        setStatus("capturing");
+      setMessage(hasEnrollment ? "Kamera aktif. Verifikasi otomatis akan berjalan." : "Kamera aktif. Klik daftarkan wajah.");
+      if (hasEnrollment) startAutoScan();
     } catch {
       setStatus("error");
       setMessage("Gagal mengakses kamera. Pastikan izin kamera sudah aktif.");
     }
-  };
+  }, [hasEnrollment, modelsReady, startAutoScan]);
 
   const clearOverlay = () => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -227,37 +315,13 @@ export default function AttendancePage() {
     }
   };
 
-  const detectFace = async () => {
-    if (!faceApi || !videoRef.current) return null;
-    const detection = await faceApi
-      .detectSingleFace(videoRef.current, new faceApi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-    if (!detection) return null;
-    const canvas = canvasRef.current;
-    if (canvas && videoRef.current.videoWidth && videoRef.current.videoHeight) {
-      const dims = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
-      canvas.width = dims.width;
-      canvas.height = dims.height;
-      faceApi.matchDimensions(canvas, dims);
-      const resized = faceApi.resizeResults(detection, dims);
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        faceApi.draw.drawDetections(canvas, resized);
-        faceApi.draw.drawFaceLandmarks(canvas, resized);
-      }
-    }
-    return detection.descriptor;
-  };
-
   const enrollFace = async () => {
     if (!faceApi || !userId) return;
     if (status !== "capturing") await startCamera();
     if (!streamRef.current) return;
     setStatus("enrolling");
     setMessage("Mendeteksi wajah untuk pendaftaran...");
-    const descriptor = await detectFace();
+    const descriptor = await captureStableDescriptor(4, 120);
     if (!descriptor) {
       setStatus("error");
       setMessage("Tidak ada wajah terdeteksi. Posisikan wajah lebih dekat ke kamera.");
@@ -375,9 +439,6 @@ export default function AttendancePage() {
                 </button>
                 <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
                   <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
-                </button>
-                <button onClick={verifyAttendance} disabled={isBusy || !modelsReady || !enrolledDescriptor} className="py-3 bg-green-500/10 text-green-400 border border-green-500/20 text-sm font-bold uppercase tracking-wide hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Verifikasi
                 </button>
               </div>
 
