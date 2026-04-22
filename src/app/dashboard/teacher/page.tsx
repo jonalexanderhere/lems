@@ -63,6 +63,10 @@ export default function TeacherDashboard() {
   const [reportClassId, setReportClassId] = useState("");
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [gradingSubmissionId, setGradingSubmissionId] = useState("");
+  const [gradingScore, setGradingScore] = useState("");
+  const [gradingFeedback, setGradingFeedback] = useState("");
+  const [gradingSaving, setGradingSaving] = useState(false);
   const [resettingEmail, setResettingEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
 
@@ -146,6 +150,63 @@ export default function TeacherDashboard() {
     };
     init();
   }, [router, supabase]);
+
+  const gradingRow = submissions.find((row) => row.id === gradingSubmissionId) ?? null;
+
+  const openGradePanel = (row: ReportSubmission) => {
+    setGradingSubmissionId(row.id);
+    setGradingScore(row.score == null ? "" : String(row.score));
+    setGradingFeedback(row.feedback ?? "");
+  };
+
+  const closeGradePanel = () => {
+    setGradingSubmissionId("");
+    setGradingScore("");
+    setGradingFeedback("");
+  };
+
+  const handleSaveGrade = async () => {
+    if (!gradingSubmissionId) return;
+    const parsedScore = gradingScore.trim() === "" ? null : Number(gradingScore);
+    if (parsedScore != null && (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > 100)) {
+      setError("Nilai harus antara 0 sampai 100.");
+      return;
+    }
+
+    setGradingSaving(true);
+    setError("");
+    const response = await fetch("/api/management/grade-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submission_id: gradingSubmissionId,
+        score: parsedScore,
+        feedback: gradingFeedback.trim() || null,
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      submission?: { id: string; score: number | null; feedback: string | null; graded_at: string | null };
+    };
+    if (!response.ok) {
+      setError(payload.error ?? "Gagal menyimpan nilai.");
+      setGradingSaving(false);
+      return;
+    }
+
+    if (payload.submission) {
+      setSubmissions((prev) =>
+        prev.map((row) =>
+          row.id === payload.submission?.id
+            ? { ...row, score: payload.submission.score, feedback: payload.submission.feedback, graded_at: payload.submission.graded_at }
+            : row
+        )
+      );
+    }
+
+    closeGradePanel();
+    setGradingSaving(false);
+  };
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -774,6 +835,59 @@ export default function TeacherDashboard() {
               </div>
             </div>
 
+            {gradingRow && (
+              <div className="p-6 bg-white/5 border border-[#FF2D2D]/20 space-y-4">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-[#FF2D2D] font-bold mb-2">Penilaian Tugas</p>
+                    <h3 className="text-xl font-black text-white">{gradingRow.profiles?.full_name ?? gradingRow.profiles?.username ?? "Unknown"}</h3>
+                    <p className="text-white/40 text-sm">{gradingRow.assignments?.title ?? "-"} · {gradingRow.assignments?.classes?.name ?? "-"}</p>
+                  </div>
+                  <button onClick={closeGradePanel} className="text-white/40 hover:text-white text-sm transition-colors">
+                    Tutup
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Nilai</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      className={inputCls}
+                      value={gradingScore}
+                      onChange={(e) => setGradingScore(e.target.value)}
+                      placeholder="0 - 100"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Feedback</label>
+                    <textarea
+                      rows={4}
+                      className={inputCls + " resize-none"}
+                      value={gradingFeedback}
+                      onChange={(e) => setGradingFeedback(e.target.value)}
+                      placeholder="Catatan untuk murid..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveGrade}
+                    disabled={gradingSaving}
+                    className="px-5 py-3 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50"
+                  >
+                    {gradingSaving ? "Menyimpan..." : "Simpan Nilai"}
+                  </button>
+                  <button onClick={closeGradePanel} className="px-5 py-3 bg-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-colors">
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white/5 border border-white/10 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <div>
@@ -801,6 +915,7 @@ export default function TeacherDashboard() {
                         <th className="px-5 py-4">Nilai</th>
                         <th className="px-5 py-4">Status</th>
                         <th className="px-5 py-4">Dikirim</th>
+                        <th className="px-5 py-4">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -819,6 +934,14 @@ export default function TeacherDashboard() {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-white/40 text-xs">{new Date(row.submitted_at).toLocaleString("id-ID")}</td>
+                          <td className="px-5 py-4">
+                            <button
+                              onClick={() => openGradePanel(row)}
+                              className="px-3 py-2 bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-colors"
+                            >
+                              {row.score == null ? "Nilai" : "Ubah"}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
