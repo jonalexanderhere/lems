@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, LayoutDashboard, Bot, BookOpen, Trophy, LogOut, ChevronDown, User } from "lucide-react";
+import { Menu, X, LayoutDashboard, Bot, BookOpen, Trophy, LogOut, ChevronDown, User, Trash2 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { createClient } from "@/utils/supabase/client";
@@ -33,6 +33,7 @@ export function Navigation() {
   const [userDropOpen, setUserDropOpen] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,27 @@ export function Navigation() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/";
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm("Akun ini akan dihapus permanen beserta seluruh data profil. Lanjutkan?");
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    try {
+      const response = await fetch("/api/account/delete", { method: "DELETE" });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Gagal menghapus akun.");
+      }
+
+      await handleSignOut();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Gagal menghapus akun.";
+      alert(message);
+      setDeletingAccount(false);
+    }
   };
 
   const isLoggedIn = !loading && profile !== null;
@@ -197,6 +219,14 @@ export function Navigation() {
                     </div>
                     <div className="border-t border-white/10 py-1">
                       <button
+                        onClick={handleDeleteAccount}
+                        disabled={deletingAccount}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {deletingAccount ? "Menghapus..." : "Hapus Akun"}
+                      </button>
+                      <button
                         onClick={handleSignOut}
                         className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
                       >
@@ -272,13 +302,23 @@ export function Navigation() {
 
         <div className="absolute bottom-8 left-6 md:bottom-12 md:left-16 lg:left-24 flex items-center gap-6">
           {isLoggedIn ? (
-            <button
-              onClick={handleSignOut}
-              className="text-sm md:text-base text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Keluar
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="text-sm md:text-base text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deletingAccount ? "Menghapus..." : "Hapus Akun"}
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="text-sm md:text-base text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Keluar
+              </button>
+            </div>
           ) : (
             <>
               <Link

@@ -17,6 +17,27 @@ export async function GET(request: Request) {
           token_hash: tokenHash!,
         })
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const classId = typeof user.user_metadata?.class_id === 'string' && user.user_metadata.class_id
+          ? user.user_metadata.class_id
+          : null
+        const yearEnrolled = Number.isFinite(Number(user.user_metadata?.year_enrolled))
+          ? Number(user.user_metadata.year_enrolled)
+          : null
+
+        await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            full_name: user.user_metadata?.full_name ?? null,
+            username: user.user_metadata?.username ?? null,
+            class_id: classId,
+            year_enrolled: yearEnrolled,
+          },
+          { onConflict: "id" }
+        )
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

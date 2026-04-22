@@ -7,7 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
 import { BookOpen, ClipboardList, Zap, Camera, ChevronRight } from "lucide-react";
 
-type ClassInfo = { name: string; grade: string; section: string };
+type ClassInfo = { id: string; name: string; grade: string; section: string };
 type Profile = {
   id: string;
   full_name: string | null;
@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
       const { data: p } = await supabase
         .from("profiles")
-        .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(name, grade, section)")
+        .select("id, full_name, username, role, xp, avatar_url, badges, class_id, classes(id, name, grade, section)")
         .eq("id", user.id)
         .single();
 
@@ -60,7 +60,7 @@ export default function DashboardPage() {
         : null;
 
       setProfile(normalizedProfile);
-      setEnrolledClass(null);
+      let resolvedClass: ClassRow | null = normalizedProfile?.classes ?? null;
 
       if (p?.class_id) {
         const { data: classRow } = await supabase
@@ -69,13 +69,17 @@ export default function DashboardPage() {
           .eq("id", p.class_id)
           .maybeSingle();
 
-        setEnrolledClass(classRow ?? null);
+        resolvedClass = classRow ?? resolvedClass;
       }
 
-      const classFilter = p?.class_id ? `class_id.eq.${p.class_id},class_id.is.null` : `class_id.is.null`;
+      const activeClassId = resolvedClass?.id ?? p?.class_id ?? null;
+      setEnrolledClass(resolvedClass);
+      const classFilter = activeClassId ? `class_id.eq.${activeClassId},class_id.is.null` : `class_id.is.null`;
 
       const [{ data: asgn }, { data: qz }, { data: crs }, { data: sub }, { data: att }] = await Promise.all([
-        supabase.from("assignments").select("*, courses(title)").eq("class_id", p?.class_id ?? "00000000-0000-0000-0000-000000000000").order("due_date", { ascending: true }).limit(5),
+        activeClassId
+          ? supabase.from("assignments").select("*, courses(title)").or(classFilter).order("due_date", { ascending: true }).limit(5)
+          : supabase.from("assignments").select("*, courses(title)").is("class_id", null).order("due_date", { ascending: true }).limit(5),
         supabase.from("quizzes").select("id, title, end_at").or(classFilter).eq("is_published", true),
         supabase.from("courses").select("*").or(classFilter).eq("is_published", true).limit(6),
         supabase.from("submissions").select("assignment_id").eq("student_id", user.id),
@@ -132,7 +136,7 @@ export default function DashboardPage() {
 
       <div className="container mx-auto px-6 md:px-12 py-10 space-y-12">
         
-        {!profile?.class_id && (
+        {!profile?.class_id && !profile?.classes && (
           <div className="p-6 bg-accent/5 border border-accent/20 rounded-sm text-sm text-white/70">
             Kelas belum tersimpan di profilmu. Jika kamu baru mendaftar, refresh halaman ini. Kalau masih kosong, cek data kelas di pendaftaran atau minta admin memperbaiki profilmu di Supabase.
           </div>

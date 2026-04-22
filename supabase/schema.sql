@@ -80,7 +80,12 @@ begin
     new.raw_user_meta_data->>'username',
     nullif(new.raw_user_meta_data->>'class_id', '')::uuid,
     nullif(new.raw_user_meta_data->>'year_enrolled', '')::int
-  );
+  )
+  on conflict (id) do update
+    set full_name = coalesce(excluded.full_name, public.profiles.full_name),
+        username = coalesce(excluded.username, public.profiles.username),
+        class_id = coalesce(public.profiles.class_id, excluded.class_id),
+        year_enrolled = coalesce(public.profiles.year_enrolled, excluded.year_enrolled);
   return new;
 end;
 $$ language plpgsql security definer;

@@ -39,28 +39,9 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  const { data: session, error: sessionError } = await admin
-    .from("attendance_sessions")
-    .select("id, start_time, end_time")
-    .eq("class_id", profile.class_id)
-    .eq("date", date)
-    .maybeSingle();
-
-  if (sessionError) {
-    return NextResponse.json({ error: sessionError.message }, { status: 400 });
-  }
-
-  if (!session) {
-    return NextResponse.json(
-      { error: "Sesi absensi untuk kelas ini belum dibuat." },
-      { status: 409 }
-    );
-  }
-
   const attendanceRecord = {
     student_id: user.id,
     class_id: profile.class_id,
-    session_id: session.id,
     date,
     status,
     method,
@@ -70,7 +51,6 @@ export async function POST(req: Request) {
   const attendanceLog = {
     student_id: user.id,
     class_id: profile.class_id,
-    session_id: session.id,
     method,
     status,
     confidence_score: confidenceScore,

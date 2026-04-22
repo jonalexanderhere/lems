@@ -5,7 +5,6 @@ import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import {
   AlertCircle,
-  BadgeCheck,
   Camera,
   CheckCircle2,
   Clock,
@@ -17,7 +16,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { getAttendanceWindow, getLocalDateString } from "@/utils/attendance";
+import { getLocalDateString } from "@/utils/attendance";
 
 type AttendanceProfile = {
   class_id: string | null;
@@ -53,10 +52,6 @@ export default function AttendancePage() {
   const [profile, setProfile] = useState<AttendanceProfile | null>(null);
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
-  const [session, setSession] = useState<{ start_time: string; end_time: string } | null>(null);
-  const [isWithinWindow, setIsWithinWindow] = useState(false);
-  const [countdown, setCountdown] = useState("");
-  const [sessionDetail, setSessionDetail] = useState("");
 
   const enrolledDescriptor = profile?.face_descriptor ? new Float32Array(profile.face_descriptor) : null;
   const hasEnrollment = Boolean(enrolledDescriptor?.length);
@@ -92,46 +87,10 @@ export default function AttendancePage() {
 
       setProfile((p ?? null) as AttendanceProfile | null);
 
-      // Fetch active session
-      const fetchSession = async () => {
-        if (p?.class_id) {
-          const todayStr = getLocalDateString();
-          const { data: sess } = await supabase.from("attendance_sessions").select("start_time, end_time").eq("class_id", p.class_id).eq("date", todayStr).single();
-          setSession(sess ? { start_time: sess.start_time, end_time: sess.end_time } : null);
-        }
-      };
-      await fetchSession();
-
-      // Realtime listener for session changes
-      const channel = supabase
-        .channel('session_updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_sessions', filter: `class_id=eq.${p?.class_id}` }, () => {
-          fetchSession();
-        })
-        .subscribe();
-
       await fetchTodayRecords();
-      return () => { supabase.removeChannel(channel); };
     };
     init();
   }, [supabase, fetchTodayRecords]);
-
-  // Session Window & Countdown logic
-  useEffect(() => {
-    if (!session) return;
-    const updateCountdown = () => {
-      const now = new Date();
-      const today = getLocalDateString(now);
-      const window = getAttendanceWindow(today, session.start_time, session.end_time, now);
-      setIsWithinWindow(window?.isActive ?? false);
-      setCountdown(window?.headline ?? "");
-      setSessionDetail(window?.detail ?? "");
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,10 +142,6 @@ export default function AttendancePage() {
       }
     }
     if (!streamRef.current) return;
-    if (!isWithinWindow) {
-      setMessage("Sesi absensi untuk kelas Anda belum dimulai atau sudah berakhir.");
-      return;
-    }
 
     setStatus("scanning");
     setMessage("Mencocokkan wajah dengan model AI...");
@@ -356,20 +311,17 @@ export default function AttendancePage() {
                   <p className="text-white/40 text-xs">{modelsReady ? "Siap" : "Memuat..."}</p>
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10 text-center">
-                  <Clock className="w-5 h-5 text-accent mx-auto mb-1.5" />
-                  <p className="font-bold text-xs mb-0.5">Sesi Absen</p>
+                  <User className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Kelas Anda</p>
                   <p className="text-white/40 text-[10px] truncate">
-                    {session ? `${session.start_time.substring(0, 5)} - ${session.end_time.substring(0, 5)}` : "Belum Set"}
+                    {profile?.classes?.name ?? "Belum ada kelas"}
                   </p>
                 </div>
                 <div className="p-3 bg-white/5 border border-white/10 text-center">
-                  <BadgeCheck className="w-5 h-5 text-accent mx-auto mb-1.5" />
-                  <p className="font-bold text-xs mb-0.5">Status Sesi</p>
-                  <p className={`text-[10px] font-black uppercase tracking-tighter ${isWithinWindow ? "text-green-400" : "text-red-400"}`}>
-                    {countdown || (isWithinWindow ? "AKTIF" : "TUTUP")}
-                  </p>
-                  <p className="text-[10px] text-white/35 mt-1 leading-tight">
-                    {sessionDetail || "Jam sesi akan tampil di sini."}
+                  <Clock className="w-5 h-5 text-accent mx-auto mb-1.5" />
+                  <p className="font-bold text-xs mb-0.5">Jam Sekarang</p>
+                  <p className="text-white/40 text-[10px] truncate">
+                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                   </p>
                 </div>
               </div>

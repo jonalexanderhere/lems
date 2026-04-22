@@ -45,7 +45,7 @@ export default function SignupPage() {
     setError("");
 
     const supabase = createClient();
-    const { error: signupError } = await supabase.auth.signUp({
+    const { data, error: signupError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -61,6 +61,29 @@ export default function SignupPage() {
 
     if (signupError) {
       setError(signupError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!data.session) {
+      setLoading(false);
+      setError("Pendaftaran berhasil. Cek email untuk verifikasi akun terlebih dahulu.");
+      return;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
+        id: data.user?.id,
+        full_name: form.fullName,
+        username: form.username,
+        class_id: selectedClass.id,
+        year_enrolled: new Date().getFullYear(),
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileError) {
+      setError(profileError.message);
       setLoading(false);
       return;
     }

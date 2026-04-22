@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
-import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2 } from "lucide-react";
+import { Plus, BookOpen, ClipboardList, Users, Upload, LogOut, Trash2, BarChart3, FileSpreadsheet, FileText, Edit2, RefreshCw, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getAttendanceWindow, getLocalDateString, isValidTimeRange, normalizeTimeValue } from "@/utils/attendance";
+import { getLocalDateString } from "@/utils/attendance";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -29,6 +29,15 @@ type ReportSubmission = {
   graded_at: string | null;
   assignments: { title: string; class_id: string | null; classes: { name: string } | null } | null;
   profiles: { full_name: string | null; username: string | null } | null;
+};
+type AttendanceFeedRow = {
+  id: string;
+  student_id: string;
+  status: string;
+  created_at: string;
+  class_name: string | null;
+  full_name: string | null;
+  username: string | null;
 };
 
 function firstItem<T>(value: T | T[] | null | undefined): T | null {
@@ -60,13 +69,9 @@ export default function TeacherDashboard() {
   // Attendance
   const [attDate, setAttDate] = useState(getLocalDateString());
   const [attClassId, setAttClassId] = useState("");
-  const [attStartTime, setAttStartTime] = useState("00:00");
-  const [attEndTime, setAttEndTime] = useState("23:59");
-  const [sessionId, setSessionId] = useState("");
-  const [sessionDirty, setSessionDirty] = useState(false);
   const [attRecords, setAttRecords] = useState<Record<string, string>>({});
+  const [attendanceFeed, setAttendanceFeed] = useState<AttendanceFeedRow[]>([]);
   const [attSaving, setAttSaving] = useState(false);
-  const [clockNow, setClockNow] = useState(() => Date.now());
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -224,138 +229,115 @@ export default function TeacherDashboard() {
     setResettingEmail("");
   };
 
-  useEffect(() => {
-    const timer = setInterval(() => setClockNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const loadAttendanceData = async () => {
+    if (tab !== "attendance" || !attDate) return;
 
-  const attendancePreview = useMemo(
-    () => getAttendanceWindow(attDate, attStartTime, attEndTime, new Date(clockNow)),
-    [attDate, attStartTime, attEndTime, clockNow]
-  );
+    const start = `${attDate}T00:00:00`;
+    const end = `${attDate}T23:59:59`;
 
-  const fetchAttendanceSession = useCallback(async () => {
-    if (tab !== "attendance" || !attDate || !attClassId) {
-      return null;
+    let recordQuery = supabase
+      .from("attendance_records")
+      .select("student_id, status, class_id")
+      .eq("date", attDate);
+    let logQuery = supabase
+      .from("attendance_logs")
+      .select("id, student_id, status, created_at, class_id, profiles(full_name, username), classes(name)")
+      .gte("created_at", start)
+      .lte("created_at", end)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (attClassId) {
+      recordQuery = recordQuery.eq("class_id", attClassId);
+      logQuery = logQuery.eq("class_id", attClassId);
     }
 
-    const { data: sess, error } = await supabase
-      .from("attendance_sessions")
-      .select("id, start_time, end_time")
-      .eq("class_id", attClassId)
-      .eq("date", attDate)
-      .maybeSingle();
+    const [{ data: recordData }, { data: logData }] = await Promise.all([recordQuery, logQuery]);
 
-    if (error) {
-      console.error("Failed to load attendance session:", error);
-      return null;
-    }
+    const mapping: Record<string, string> = {};
+    recordData?.forEach((r: { student_id: string; status: string }) => {
+      if (r.student_id) mapping[r.student_id] = r.status;
+    });
 
-    return sess ?? null;
-  }, [attClassId, attDate, supabase, tab]);
+    const feed = (logData ?? []).map((row: {
+      id: string;
+      student_id: string;
+      status: string;
+      created_at: string;
+      class_id: string | null;
+      profiles: { full_name: string | null; username: string | null } | { full_name: string | null; username: string | null }[] | null;
+      classes: { name: string } | { name: string }[] | null;
+    }) => {
+      const profileEntry = firstItem(row.profiles);
+      const classEntry = firstItem(row.classes);
+      return {
+        id: row.id,
+        student_id: row.student_id,
+        status: row.status,
+        created_at: row.created_at,
+        full_name: profileEntry?.full_name ?? null,
+        username: profileEntry?.username ?? null,
+        class_name: classEntry?.name ?? null,
+      };
+    });
 
-  // Reload the current session whenever the selected class/date changes.
-  useEffect(() => {
-    let cancelled = false;
+    setAttRecords(mapping);
+    setAttendanceFeed(feed as AttendanceFeedRow[]);
+  };
 
-    const run = async () => {
-      if (tab !== "attendance" || !attDate || !attClassId) {
-        setSessionId("");
-        setSessionDirty(false);
-        if (!attClassId) {
-          setAttStartTime("07:00");
-          setAttEndTime("14:00");
-        }
-        return;
-      }
-
-      const sess = await fetchAttendanceSession();
-      if (cancelled) return;
-
-      if (sess) {
-        setSessionId(sess.id);
-        setAttStartTime(normalizeTimeValue(sess.start_time));
-        setAttEndTime(normalizeTimeValue(sess.end_time));
-        setSessionDirty(false);
-      } else {
-        setSessionId("");
-        setAttStartTime("07:00");
-        setAttEndTime("14:00");
-        setSessionDirty(false);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [attClassId, attDate, fetchAttendanceSession, tab]);
-
-  // 2. EFFECT TO FETCH ATTENDANCE RECORDS (When any filter changes)
   useEffect(() => {
     if (tab !== "attendance" || !attDate) return;
-    const fetchAttendance = async () => {
-      // Fetch manual records for the day
-      let manualQuery = supabase.from("attendance_records").select("student_id, status, class_id").eq("date", attDate);
-      if (attClassId) {
-        manualQuery = manualQuery.eq("class_id", attClassId);
-      }
-      // Fetch automated logs for the day with time filter
-      const start = `${attDate}T${attStartTime}:00`;
-      const end = `${attDate}T${attEndTime}:59`;
-      let logQuery = supabase.from("attendance_logs").select("student_id, status, class_id").gte("created_at", start).lte("created_at", end);
-      if (attClassId) {
-        logQuery = logQuery.eq("class_id", attClassId);
-      }
 
-      const [{ data: manualData }, { data: logData }] = await Promise.all([manualQuery, logQuery]);
+    void loadAttendanceData();
 
-      const mapping: Record<string, string> = {};
-      logData?.forEach(r => { if (r.student_id) mapping[r.student_id] = r.status; });
-      manualData?.forEach(r => { if (r.student_id) mapping[r.student_id] = r.status; });
-      setAttRecords(mapping);
-    };
-    fetchAttendance();
-
-
-
-    // REAL-TIME SUBSCRIPTION
     const channel = supabase
-      .channel('attendance_updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attendance_logs' }, (payload) => {
-        const newLog = payload.new as { student_id: string; status: string; created_at: string };
-        // Only update if it's for the current selected date
-        const logDate = newLog.created_at.split("T")[0];
-        const logClassId = (payload.new as { class_id?: string | null }).class_id;
-        if (logDate === attDate && (!attClassId || logClassId === attClassId)) {
-          setAttRecords(prev => ({ ...prev, [newLog.student_id]: newLog.status }));
-        }
+      .channel("attendance_updates")
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, (payload) => {
+        const row = payload.new as { student_id?: string; status?: string; date?: string; class_id?: string | null };
+        if (!row.student_id || !row.status || row.date !== attDate) return;
+        if (attClassId && row.class_id !== attClassId) return;
+        setAttRecords((prev) => ({ ...prev, [row.student_id!]: row.status! }));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, (payload) => {
-        const newRec = payload.new as { student_id: string; status: string; date: string; class_id?: string | null };
-        if (newRec.date === attDate && (!attClassId || newRec.class_id === attClassId)) {
-          setAttRecords(prev => ({ ...prev, [newRec.student_id]: newRec.status }));
-        }
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "attendance_logs" }, (payload) => {
+        const row = payload.new as {
+          id: string;
+          student_id: string;
+          status: string;
+          created_at: string;
+          class_id: string | null;
+        };
+        const logDate = row.created_at.split("T")[0];
+        if (logDate !== attDate) return;
+        if (attClassId && row.class_id !== attClassId) return;
+
+        const student = students.find((item) => item.id === row.student_id);
+        const className = classes.find((item) => item.id === row.class_id)?.name ?? student?.class_name ?? null;
+
+        setAttendanceFeed((prev) => [
+          {
+            id: row.id,
+            student_id: row.student_id,
+            status: row.status,
+            created_at: row.created_at,
+            class_name: className,
+            full_name: student?.full_name ?? null,
+            username: student?.username ?? null,
+          },
+          ...prev.filter((item) => item.id !== row.id),
+        ]);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tab, attDate, attClassId, attStartTime, attEndTime, supabase]);
-
-  const applySessionPreset = (startTime: string, endTime: string) => {
-    setAttStartTime(normalizeTimeValue(startTime));
-    setAttEndTime(normalizeTimeValue(endTime));
-    setSessionDirty(true);
-  };
+  }, [attClassId, attDate, classes, students, supabase, tab]);
 
   const handleSaveAttendance = async () => {
     setAttSaving(true);
     const records = Object.entries(attRecords).map(([student_id, status]) => ({
       student_id,
       date: attDate,
-      session_id: sessionId || null,
       status,
       class_id: students.find(s => s.id === student_id)?.class_id || null
     }));
@@ -365,38 +347,6 @@ export default function TeacherDashboard() {
     }
     setAttSaving(false);
     alert("Absensi berhasil disimpan.");
-  };
-
-  const handleSaveSession = async () => {
-    if (!attClassId) { alert("Pilih kelas terlebih dahulu."); return; }
-    if (!isValidTimeRange(attStartTime, attEndTime)) {
-      alert("Jam selesai harus lebih besar dari jam mulai.");
-      return;
-    }
-    setAttSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: savedSession, error } = await supabase.from("attendance_sessions").upsert({
-      class_id: attClassId,
-      date: attDate,
-      start_time: normalizeTimeValue(attStartTime),
-      end_time: normalizeTimeValue(attEndTime),
-      teacher_id: user?.id
-    }, { onConflict: "class_id, date" }).select("id").single();
-
-    if (error) { alert("Gagal menyimpan sesi: " + error.message); }
-    else {
-      const refreshedSession = await fetchAttendanceSession();
-      if (refreshedSession) {
-        setSessionId(refreshedSession.id);
-        setAttStartTime(normalizeTimeValue(refreshedSession.start_time));
-        setAttEndTime(normalizeTimeValue(refreshedSession.end_time));
-      } else if (savedSession?.id) {
-        setSessionId(savedSession.id);
-      }
-      setSessionDirty(false);
-      alert("Sesi absensi berhasil ditetapkan untuk kelas ini.");
-    }
-    setAttSaving(false);
   };
 
   const handleDeleteAttendance = async (studentId: string) => {
@@ -410,6 +360,7 @@ export default function TeacherDashboard() {
     const newRecs = { ...attRecords };
     delete newRecs[studentId];
     setAttRecords(newRecs);
+    setAttendanceFeed((prev) => prev.filter((item) => item.student_id !== studentId));
     setAttSaving(false);
   };
 
@@ -820,38 +771,12 @@ export default function TeacherDashboard() {
             <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "var(--font-grotesk)" }}>Absensi Murid</h2>
-                <p className="text-white/40 text-sm mt-2">Terdaftar {students.length} murid di sistem.</p>
+                <p className="text-white/40 text-sm mt-2">Absensi siswa masuk realtime dari kamera dan tampil otomatis di dashboard guru.</p>
               </div>
-              <div className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(280px,1fr)] w-full">
+              <div className="grid gap-3 md:grid-cols-2 w-full md:w-auto">
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Tanggal</span>
                   <input type="date" className={inputCls} value={attDate} onChange={(e) => setAttDate(e.target.value)} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Mulai</span>
-                  <input
-                    type="time"
-                    step={60}
-                    className={inputCls}
-                    value={normalizeTimeValue(attStartTime)}
-                    onChange={(e) => {
-                      setAttStartTime(normalizeTimeValue(e.target.value));
-                      setSessionDirty(true);
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Jam Selesai</span>
-                  <input
-                    type="time"
-                    step={60}
-                    className={inputCls}
-                    value={normalizeTimeValue(attEndTime)}
-                    onChange={(e) => {
-                      setAttEndTime(normalizeTimeValue(e.target.value));
-                      setSessionDirty(true);
-                    }}
-                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-white/30 uppercase font-bold mb-1">Kelas</span>
@@ -860,78 +785,75 @@ export default function TeacherDashboard() {
                     {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                <div className="p-4 bg-white/5 border border-white/10 min-h-[118px]">
-                  <p className="text-[10px] text-white/30 uppercase font-bold">Pratinjau Sesi</p>
-                  <p className={`mt-2 text-sm font-bold ${attendancePreview?.phase === "live" ? "text-green-400" : attendancePreview?.phase === "upcoming" ? "text-yellow-400" : "text-white/70"}`}>
-                    {attendancePreview?.headline ?? "Pilih tanggal dan jam untuk melihat hitungan waktu."}
-                  </p>
-                  <p className="text-white/35 text-xs mt-2">{attendancePreview?.detail ?? "Preview akan muncul setelah tanggal dan jam diisi."}</p>
-                  <div className="mt-3 h-2 bg-white/10 overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${attendancePreview?.phase === "live" ? "bg-green-400" : attendancePreview?.phase === "upcoming" ? "bg-yellow-400" : "bg-[#FF2D2D]"}`}
-                      style={{ width: `${attendancePreview?.progress ?? 0}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-white/35">
-                    <span>Mulai {attendancePreview?.startLabel ?? "--:--"}</span>
-                    <span>Selesai {attendancePreview?.endLabel ?? "--:--"}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => applySessionPreset("07:00", "14:00")}
-                      className="px-3 py-1.5 border border-white/10 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-widest hover:border-white/30 hover:text-white transition-colors"
-                    >
-                      Preset 07-14
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applySessionPreset("12:00", "16:00")}
-                      className="px-3 py-1.5 border border-white/10 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-widest hover:border-white/30 hover:text-white transition-colors"
-                    >
-                      Preset 12-16
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const sess = await fetchAttendanceSession();
-                        if (sess) {
-                          setAttStartTime(normalizeTimeValue(sess.start_time));
-                          setAttEndTime(normalizeTimeValue(sess.end_time));
-                          setSessionDirty(false);
-                        }
-                      }}
-                      className="px-3 py-1.5 border border-[#FF2D2D]/20 bg-[#FF2D2D]/10 text-[#FF2D2D] text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-colors"
-                    >
-                      Muat Sesi
-                    </button>
-                  </div>
-                  <p className="mt-2 text-[10px] text-white/30 uppercase tracking-widest">
-                    {sessionDirty ? "Perubahan belum disimpan" : sessionId ? "Sesi aktif siap diedit" : "Belum ada sesi tersimpan"}
-                  </p>
-                </div>
-                <div className="flex flex-col xl:col-span-5">
-                  <span className="text-[10px] opacity-0 mb-1">.</span>
-                  <div className="flex gap-2 flex-wrap">
-                    <button onClick={handleSaveSession} disabled={attSaving} className="px-6 py-2.5 bg-white/10 text-white border border-white/20 font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-                      {attSaving ? "..." : sessionId ? "Simpan Perubahan" : "Set Sesi"}
-                    </button>
-                    <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
-                      {attSaving ? "..." : "Simpan"}
-                    </button>
-                    <button onClick={async () => {
-                      if (confirm("Bersihkan semua absensi untuk tanggal ini?") && confirm("Yakin?")) {
-                        await supabase.from("attendance_records").delete().eq("date", attDate);
-                        setAttRecords({});
-                      }
-                    }} className="px-4 py-2.5 bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-all">
-                      Clear
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-5 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Log Realtime</p>
+                <p className="text-3xl font-black text-white">{attendanceFeed.length}</p>
+              </div>
+              <div className="p-5 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Siswa Unik</p>
+                <p className="text-3xl font-black text-white">{new Set(attendanceFeed.map((row) => row.student_id)).size}</p>
+              </div>
+              <div className="p-5 bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-widest mb-2">Status Tercatat</p>
+                <p className="text-3xl font-black text-white">{Object.keys(attRecords).length}</p>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <p className="text-sm uppercase tracking-widest text-white/40">Feed Realtime</p>
+                  <p className="text-white font-bold">Nama, kelas, jam, dan status akan muncul saat siswa melakukan absensi.</p>
+                </div>
+                <button
+                  onClick={loadAttendanceData}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" /> Muat Ulang
+                </button>
+              </div>
+              {attendanceFeed.length === 0 ? (
+                <div className="p-12 text-center text-white/40">
+                  <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Belum ada absensi masuk untuk filter yang dipilih.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-white/5 border-b border-white/10 text-xs uppercase font-bold tracking-widest">
+                      <tr>
+                        <th className="px-5 py-4 text-white">Nama</th>
+                        <th className="px-5 py-4 text-white">Kelas</th>
+                        <th className="px-5 py-4 text-white">Jam</th>
+                        <th className="px-5 py-4 text-white">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {attendanceFeed.map((row) => (
+                        <tr key={row.id} className="hover:bg-white/[0.02]">
+                          <td className="px-5 py-4">
+                            <p className="font-bold text-white">{row.full_name ?? row.username ?? "Unknown"}</p>
+                            <p className="text-white/30 text-xs">{row.student_id}</p>
+                          </td>
+                          <td className="px-5 py-4 text-white/70">{row.class_name ?? "-"}</td>
+                          <td className="px-5 py-4 text-white/70">{new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
+                          <td className="px-5 py-4">
+                            <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${row.status === "present" ? "bg-green-500/20 text-green-300" : row.status === "late" ? "bg-yellow-500/20 text-yellow-300" : row.status === "sick" ? "bg-blue-500/20 text-blue-300" : row.status === "permission" ? "bg-purple-500/20 text-purple-300" : "bg-[#FF2D2D]/20 text-[#FF2D2D]"}`}>
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             <div className="overflow-x-auto border border-white/10">
               <table className="w-full text-left text-sm">
                 <thead className="bg-white/5 border-b border-white/10 text-xs uppercase font-bold tracking-widest">
@@ -951,44 +873,59 @@ export default function TeacherDashboard() {
                   ) : (
                     students.filter(s => !attClassId || s.class_id === attClassId).map(student => (
                       <tr key={student.id} className="hover:bg-white/[0.02]">
-
-                      <td className="px-6 py-4">
-                        <p className="font-bold text-white">{student.full_name ?? student.username}</p>
-                        <p className="text-white/30 text-xs">{student.email}</p>
-                      </td>
-                      <td className="px-6 py-4 text-white/50">{student.class_name ?? "-"}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1">
-                          {[
-                            { id: 'present', label: 'H', color: 'bg-green-500' },
-                            { id: 'late', label: 'T', color: 'bg-yellow-500' },
-                            { id: 'sick', label: 'S', color: 'bg-blue-500' },
-                            { id: 'permission', label: 'I', color: 'bg-purple-500' },
-                            { id: 'absent', label: 'A', color: 'bg-red-500' },
-                          ].map(opt => (
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-white">{student.full_name ?? student.username}</p>
+                          <p className="text-white/30 text-xs">{student.email}</p>
+                        </td>
+                        <td className="px-6 py-4 text-white/50">{student.class_name ?? "-"}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1">
+                            {[
+                              { id: 'present', label: 'H', color: 'bg-green-500' },
+                              { id: 'late', label: 'T', color: 'bg-yellow-500' },
+                              { id: 'sick', label: 'S', color: 'bg-blue-500' },
+                              { id: 'permission', label: 'I', color: 'bg-purple-500' },
+                              { id: 'absent', label: 'A', color: 'bg-red-500' },
+                            ].map(opt => (
+                              <button
+                                key={opt.id}
+                                onClick={() => setAttRecords({ ...attRecords, [student.id]: opt.id })}
+                                className={`w-8 h-8 rounded-full text-[10px] font-black transition-all ${attRecords[student.id] === opt.id ? `${opt.color} text-white scale-110 shadow-lg` : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
+                                title={opt.id.toUpperCase()}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
                             <button
-                              key={opt.id}
-                              onClick={() => setAttRecords({ ...attRecords, [student.id]: opt.id })}
-                              className={`w-8 h-8 rounded-full text-[10px] font-black transition-all ${attRecords[student.id] === opt.id ? `${opt.color} text-white scale-110 shadow-lg` : 'bg-white/5 text-white/30 hover:bg-white/10'}`}
-                              title={opt.id.toUpperCase()}
+                              onClick={() => handleDeleteAttendance(student.id)}
+                              className="w-8 h-8 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] flex items-center justify-center hover:bg-[#FF2D2D] hover:text-white transition-all ml-2"
+                              title="Hapus Data"
                             >
-                              {opt.label}
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          ))}
-                          <button
-                            onClick={() => handleDeleteAttendance(student.id)}
-                            className="w-8 h-8 rounded-full bg-[#FF2D2D]/10 text-[#FF2D2D] flex items-center justify-center hover:bg-[#FF2D2D] hover:text-white transition-all ml-2"
-                            title="Hapus Data"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          </div>
+                        </td>
+                      </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={handleSaveAttendance} disabled={attSaving} className="px-6 py-2.5 bg-[#FF2D2D] text-white font-bold text-xs uppercase tracking-widest hover:bg-white hover:text-black transition-colors disabled:opacity-50">
+                {attSaving ? "..." : "Simpan"}
+              </button>
+              <button onClick={async () => {
+                if (confirm("Bersihkan semua absensi untuk tanggal ini?") && confirm("Yakin?")) {
+                  await supabase.from("attendance_records").delete().eq("date", attDate);
+                  await supabase.from("attendance_logs").delete().gte("created_at", `${attDate}T00:00:00`).lte("created_at", `${attDate}T23:59:59`);
+                  setAttRecords({});
+                  setAttendanceFeed([]);
+                }
+              }} className="px-4 py-2.5 bg-white/10 text-white/40 text-[10px] font-bold uppercase tracking-widest hover:bg-[#FF2D2D] hover:text-white transition-all">
+                Clear
+              </button>
             </div>
           </div>
         )}
