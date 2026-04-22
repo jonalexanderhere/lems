@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 XP: {xpValue}
               </span>
             </div>
-            <div className="mt-5 max-w-2xl grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="mt-5 max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="p-4 bg-white/5 border border-white/10">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Target rank berikutnya</p>
                 <p className="mt-2 text-sm font-bold text-white">{nextTargetLabel}</p>
@@ -181,24 +181,20 @@ export default function DashboardPage() {
                 <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Sisa XP</p>
                 <p className="mt-2 text-sm font-bold text-white">{remainingXpLabel}</p>
               </div>
-              <div className="p-4 bg-white/5 border border-white/10">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-white/40">Progress Tier</p>
-                <p className="mt-2 text-sm font-bold text-white">{xpProgress.progress}% ke {xpProgress.nextLabel ?? "maksimum"}</p>
-              </div>
             </div>
-            <div className="mt-5 max-w-xl">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-white/40 mb-2">
-                <span>Progress XP</span>
+            <div className="mt-5 max-w-2xl p-5 bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.24em] text-white/40 mb-3">
+                <span>Progress Rank</span>
                 <span>{xpProgress.progress}% ke {xpProgress.nextLabel ?? "maksimum"}</span>
               </div>
-              <div className="h-3 bg-white/5 border border-white/10 overflow-hidden">
+              <div className="h-4 bg-white/5 border border-white/10 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#FF2D2D] via-yellow-400 to-emerald-400 transition-all"
+                  className="h-full bg-gradient-to-r from-[#FF2D2D] via-yellow-400 to-emerald-400 transition-all duration-500"
                   style={{ width: `${xpProgress.progress}%` }}
                 />
               </div>
-              <p className="text-white/35 text-xs mt-2">
-                XP kamu tersinkron otomatis dari aktivitas belajar, kuis, dan penilaian tugas.
+              <p className="text-white/35 text-xs mt-3">
+                Kamu butuh {remainingXpLabel} untuk naik ke tier berikutnya.
               </p>
             </div>
           </div>
