@@ -16,10 +16,21 @@ export default async function LeaderboardPage() {
   const supabase = await createClient();
   const { data: leaders } = await supabase
     .from("profiles")
-    .select("id, username, full_name, xp, avatar_url, badges, classes(name)")
+    .select("id, username, full_name, xp, avatar_url, badges, class_id")
     .eq("role", "student")
     .order("xp", { ascending: false })
     .limit(20);
+
+  const classIds = [...new Set((leaders ?? []).map((leader) => leader.class_id).filter((value): value is string => Boolean(value)))];
+  const classMap = new Map<string, string>();
+  if (classIds.length > 0) {
+    const { data: classes } = await supabase
+      .from("classes")
+      .select("id, name")
+      .in("id", classIds);
+
+    (classes ?? []).forEach((item) => classMap.set(item.id, item.name));
+  }
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
@@ -66,7 +77,7 @@ export default async function LeaderboardPage() {
                 const badges = deriveBadges({ xp: user.xp, badges: Array.isArray(user.badges) ? user.badges : [] });
                 const displayName = user.username ?? user.full_name ?? "Anonymous";
                 const initials = displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase();
-                const classEntry = Array.isArray(user.classes) ? user.classes[0] ?? null : user.classes;
+                const className = user.class_id ? classMap.get(user.class_id) ?? "-" : "-";
 
                 return (
                   <Link key={user.id} href={`/profile/${user.id}`}
@@ -92,7 +103,7 @@ export default async function LeaderboardPage() {
                         <p className={`font-black text-xl md:text-2xl tracking-tight ${rank === 1 ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-yellow-300" : rank === 2 ? "text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-white to-slate-300" : rank === 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-orange-200 via-white to-orange-300" : "text-white group-hover:text-[#FF2D2D] transition-colors"}`}>
                           {displayName}
                         </p>
-                        <p className="text-white/40 text-sm">{classEntry?.name ?? "-"}</p>
+                        <p className="text-white/40 text-sm">{className}</p>
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 mt-3 border text-[10px] font-bold uppercase tracking-[0.24em] ${leaderboardRankClass(leaderboardRank.tone)}`}>
                           #{rank} {leaderboardRank.label}
                         </span>

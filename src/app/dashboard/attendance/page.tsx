@@ -438,15 +438,15 @@ export default function AttendancePage() {
               </div>
 
               {/* Buttons */}
-              <div className={`grid grid-cols-1 gap-2 mb-3 ${hasEnrollment ? "sm:grid-cols-1" : "sm:grid-cols-2"}`}>
+              <div className="grid grid-cols-1 gap-2 mb-3 sm:grid-cols-1">
+                <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  <Camera className="w-4 h-4" /> Kamera
+                </button>
                 {!hasEnrollment && (
-                  <button onClick={startCamera} disabled={isBusy} className="py-3 bg-white/10 text-white text-sm font-bold uppercase tracking-wide hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                    <Camera className="w-4 h-4" /> Kamera
+                  <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                    <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
                   </button>
                 )}
-                <button onClick={enrollFace} disabled={isBusy || !modelsReady} className="py-3 bg-[#FF2D2D]/20 text-[#FF2D2D] border border-[#FF2D2D]/30 text-sm font-bold uppercase tracking-wide hover:bg-[#FF2D2D] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-                  <UserRoundPlus className="w-4 h-4" /> Daftar Wajah
-                </button>
               </div>
 
               <div className="flex items-center justify-between text-xs text-white/30">
