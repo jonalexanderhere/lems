@@ -1015,6 +1015,7 @@ export default function TeacherDashboard() {
                       <tr>
                         <th className="px-5 py-4 text-white">Nama</th>
                         <th className="px-5 py-4 text-white">Kelas</th>
+                        <th className="px-5 py-4 text-white">Tanggal</th>
                         <th className="px-5 py-4 text-white">Jam</th>
                         <th className="px-5 py-4 text-white">Status</th>
                       </tr>
@@ -1027,6 +1028,14 @@ export default function TeacherDashboard() {
                             <p className="text-white/30 text-xs">{row.student_id}</p>
                           </td>
                           <td className="px-5 py-4 text-white/70">{row.class_name ?? "-"}</td>
+                          <td className="px-5 py-4 text-white/70">
+                            {new Date(row.created_at).toLocaleDateString("id-ID", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </td>
                           <td className="px-5 py-4 text-white/70">{new Date(row.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
                           <td className="px-5 py-4">
                             <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${row.status === "present" ? "bg-green-500/20 text-green-300" : row.status === "late" ? "bg-yellow-500/20 text-yellow-300" : row.status === "sick" ? "bg-blue-500/20 text-blue-300" : row.status === "permission" ? "bg-purple-500/20 text-purple-300" : "bg-[#FF2D2D]/20 text-[#FF2D2D]"}`}>
