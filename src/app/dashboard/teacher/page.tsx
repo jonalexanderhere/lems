@@ -629,8 +629,8 @@ export default function TeacherDashboard() {
     Link: row.file_url ?? "",
     Nilai: row.score ?? "",
     Status: row.score == null ? "Belum dinilai" : row.score >= 80 ? "Lulus" : "Belum lulus",
-    Dikirim: row.submitted_at ? new Date(row.submitted_at).toLocaleString("id-ID") : "-",
-    Dinilai: row.graded_at ? new Date(row.graded_at).toLocaleString("id-ID") : "-",
+    Dikirim: row.submitted_at ? new Date(row.submitted_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "-",
+    Dinilai: row.graded_at ? new Date(row.graded_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "-",
     Feedback: row.feedback ?? "",
   }));
 
@@ -958,7 +958,7 @@ export default function TeacherDashboard() {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/40 text-xs font-mono">
                         {a.courses && <span>Course: {a.courses.title}</span>}
                         {a.classes && <span>Class: {a.classes.name}</span>}
-                        <span>Due: {a.due_date ? new Date(a.due_date).toLocaleString("id-ID") : "No Due Date"}</span>
+                        <span>Due: {a.due_date ? new Date(a.due_date).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "No Due Date"}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1026,7 +1026,7 @@ export default function TeacherDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-white/70">{account.class_name ?? "-"}</td>
-                        <td className="px-6 py-4 text-white/40 text-xs">{new Date(account.created_at).toLocaleString("id-ID")}</td>
+                        <td className="px-6 py-4 text-white/40 text-xs">{new Date(account.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</td>
                       </tr>
                     ))
                   )}
@@ -1215,7 +1215,7 @@ export default function TeacherDashboard() {
                               {row.score == null ? "Belum dinilai" : row.score >= 80 ? "Lulus" : "Belum lulus"}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-white/40 text-xs">{new Date(row.submitted_at).toLocaleString("id-ID")}</td>
+                          <td className="px-5 py-4 text-white/40 text-xs">{new Date(row.submitted_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</td>
                           <td className="px-5 py-4">
                             <button
                               onClick={() => openGradePanel(row)}

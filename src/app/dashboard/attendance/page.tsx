@@ -392,7 +392,7 @@ export default function AttendancePage() {
                   <Clock className="w-5 h-5 text-accent mx-auto mb-1.5" />
                   <p className="font-bold text-xs mb-0.5">Jam Sekarang</p>
                   <p className="text-white/40 text-[10px] truncate">
-                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Jakarta" })}
                   </p>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function AttendancePage() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/10 backdrop-blur-sm">
                     <CheckCircle2 className="w-16 h-16 text-green-400 mb-3 animate-bounce" />
                     <p className="text-xl font-black text-white uppercase tracking-tight">Absensi Tercatat!</p>
-                    <p className="text-green-400 text-sm mt-1 font-mono">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</p>
+                    <p className="text-green-400 text-sm mt-1 font-mono">{new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jakarta" })}</p>
                   </div>
                 )}
               </div>
@@ -467,8 +467,9 @@ export default function AttendancePage() {
                     Rekap Hari Ini
                   </h2>
                   <p className="text-white/40 text-xs mt-0.5">
-                    {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}
                   </p>
+
                 </div>
                 <button onClick={fetchTodayRecords} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white">
                   <RefreshCw className="w-4 h-4" />
@@ -484,7 +485,7 @@ export default function AttendancePage() {
                 <div className="p-4 bg-white/5 border border-white/10 rounded-sm text-center">
                   <p className="text-2xl font-black text-white">
                     {todayRecords.length > 0
-                      ? new Date(todayRecords[todayRecords.length - 1].created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                      ? new Date(todayRecords[todayRecords.length - 1].created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" })
                       : "—"}
                   </p>
                   <p className="text-white/50 text-xs uppercase tracking-widest mt-1">Pertama Masuk</p>
@@ -512,7 +513,7 @@ export default function AttendancePage() {
                       const name = (rec.profiles as { full_name: string | null; username: string | null } | null)?.full_name
                         ?? (rec.profiles as { full_name: string | null; username: string | null } | null)?.username
                         ?? "Tidak Dikenal";
-                      const time = new Date(rec.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                      const time = new Date(rec.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Jakarta" });
                       return (
                         <div key={rec.id} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]">
                           <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">

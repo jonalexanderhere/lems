@@ -454,7 +454,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="text-[#FF2D2D] text-xs font-bold uppercase tracking-widest mb-1">{session.classes?.name ?? "Tanpa Kelas"}</p>
                           <h3 className="font-black text-lg text-white">{session.profiles?.full_name ?? "Guru"}</h3>
-                          <p className="text-white/40 text-sm mt-1">Tanggal {new Date(session.date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                          <p className="text-white/40 text-sm mt-1">Tanggal {new Date(session.date + "T00:00:00+07:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}</p>
                         </div>
                         <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest border ${window?.phase === "live" ? "border-green-400/30 bg-green-500/15 text-green-300" : window?.phase === "upcoming" ? "border-yellow-400/30 bg-yellow-500/15 text-yellow-300" : "border-white/10 bg-white/5 text-white/40"}`}>
                           {window?.phase === "live" ? "Aktif" : window?.phase === "upcoming" ? "Menunggu" : "Selesai"}
@@ -519,7 +519,7 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-white/5">
                   {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-white/[0.02]">
-                      <td className="px-6 py-4 font-mono text-xs text-white/50">{new Date(log.created_at).toLocaleString("id-ID")}</td>
+                      <td className="px-6 py-4 font-mono text-xs text-white/50">{new Date(log.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}</td>
                       <td className="px-6 py-4 font-bold">{log.profiles?.full_name ?? log.profiles?.username ?? "System"}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase ${

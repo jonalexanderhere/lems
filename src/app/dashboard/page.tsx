@@ -146,6 +146,7 @@ export default function DashboardPage() {
 
   const pendingAssignments = assignments.filter(a => !submissions.has(a.id));
   const pendingQuizzes = quizzes.filter(q => !attempts.has(q.id) && (!q.end_at || new Date(q.end_at) > new Date()));
+
   const hasResolvedClass = Boolean(enrolledClass || profile?.classes || profile?.class_id);
   const displayName = profile?.username ?? profile?.full_name ?? "Siswa";
   const xpValue = profile?.xp ?? 0;

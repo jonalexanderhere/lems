@@ -97,7 +97,7 @@ export default async function StudentQuizPage({ params }: QuizPageProps) {
 
   const { data: attempt } = await supabase
     .from("quiz_attempts")
-    .select("id, score, max_score, submitted_at, started_at")
+    .select("id, score, total_questions, correct_answers, submitted_at, started_at")
     .eq("quiz_id", id)
     .eq("student_id", user.id)
     .maybeSingle();
@@ -165,7 +165,7 @@ export default async function StudentQuizPage({ params }: QuizPageProps) {
               </p>
               <p className="text-white/40 text-sm mt-2">
                 {attempt
-                  ? `Kamu sudah punya riwayat pengerjaan. Nilai terakhir: ${attempt.score ?? "-"}${attempt.max_score ? ` / ${attempt.max_score}` : ""}`
+                  ? `Kamu sudah punya riwayat pengerjaan. Nilai terakhir: ${attempt.score ?? "-"}${attempt.total_questions ? ` / ${attempt.total_questions}` : ""}${attempt.correct_answers != null ? ` (${attempt.correct_answers} benar)` : ""}`
                   : "Belum ada riwayat pengerjaan untuk akun ini."}
               </p>
             </div>

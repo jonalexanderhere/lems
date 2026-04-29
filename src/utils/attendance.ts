@@ -116,16 +116,16 @@ export function getAttendanceWindow(date: string, startTime: string, endTime: st
       progress: 0,
       headline: "Jadwal tidak valid",
       detail: "Jam selesai harus lebih besar dari jam mulai.",
-      startLabel: start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }),
-      endLabel: end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }),
+      startLabel: start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }),
+      endLabel: end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }),
     };
   }
 
   const nowMs = now.getTime();
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const startLabel = start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
-  const endLabel = end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+  const startLabel = start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" });
+  const endLabel = end.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" });
 
   if (nowMs < startMs) {
     return {

@@ -177,7 +177,7 @@ export default function AssignmentPage() {
           {due && (
             <div className={`flex items-center gap-2 text-sm font-mono ${isOverdue ? "text-[#FF2D2D]" : "text-white/50"}`}>
               <Clock className="w-4 h-4" />
-              Deadline: {due.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              Deadline: {due.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
               {isOverdue && " (OVERDUE)"}
             </div>
           )}
@@ -218,7 +218,7 @@ export default function AssignmentPage() {
               <CheckCircle2 className="w-8 h-8 text-green-400" />
               <div>
                 <p className="font-black text-green-400 text-xl uppercase tracking-tight">Submitted!</p>
-                <p className="text-white/50 text-sm">{new Date(submission.submitted_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="text-white/50 text-sm">{new Date(submission.submitted_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 mb-4 overflow-hidden">

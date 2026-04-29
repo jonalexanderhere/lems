@@ -128,8 +128,8 @@ export async function POST(req: NextRequest) {
     // Stream the response to get reasoning tokens in usage
     const stream = await openrouter.chat.send({
       chatRequest: {
-        model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        model: process.env.OPENROUTER_MODEL ?? "openai/gpt-oss-120b:free",
+        messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...messages],
         stream: true
       }
     });

@@ -223,8 +223,8 @@ export default function QuizResultsPage() {
                           </td>
                           <td className="px-5 py-4 text-white/40 text-xs font-mono">
                             {att.submitted_at
-                              ? new Date(att.submitted_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                              : new Date(att.started_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              ? new Date(att.submitted_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })
+                              : new Date(att.started_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}
                           </td>
                         </tr>
                       );
