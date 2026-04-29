@@ -246,14 +246,14 @@ export default function NewQuizPage() {
                 <label className={labelCls}>Waktu Mulai</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input type="date" className={inputCls} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-                  <input type="time" step={60} className={inputCls} value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                  <input lang="id-ID" type="time" step={60} className={inputCls} value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-3">
                 <label className={labelCls}>Waktu Selesai</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input type="date" className={inputCls} value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
-                  <input type="time" step={60} className={inputCls} value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                  <input lang="id-ID" type="time" step={60} className={inputCls} value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
                 </div>
               </div>
             </div>
