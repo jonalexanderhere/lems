@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { formatJakartaDateTime } from "@/utils/datetime";
 
 type Quiz = {
   id: string;
@@ -49,13 +50,9 @@ const TYPE_COLORS: Record<string, string> = {
 
 function formatDateTime24(value: string | null) {
   if (!value) return "";
-  return new Date(value).toLocaleString("id-ID", {
+  return formatJakartaDateTime(value, {
     day: "numeric",
     month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Jakarta",
   });
 }
 

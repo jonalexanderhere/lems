@@ -11,6 +11,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildDateRangeForDate, getDateStringInTimeZone, getLocalDateString } from "@/utils/attendance";
 import { suggestNextClassId } from "@/utils/class-promotion";
+import { formatJakartaDateTime, jakartaDateTimeLocalToUtcIso } from "@/utils/datetime";
 
 type Course = { id: string; title: string; category: string; level: string; is_published: boolean };
 type Assignment = { id: string; title: string; due_date: string | null; courses: { title: string } | null; classes: { name: string } | null };
@@ -340,12 +341,19 @@ export default function TeacherDashboard() {
       attachmentName = assignFile.name;
     }
 
+    const dueDate = jakartaDateTimeLocalToUtcIso(assignForm.due_date);
+    if (assignForm.due_date && !dueDate) {
+      setError("Due date tidak valid. Gunakan tanggal ISO dan jam 24 jam.");
+      setSaving(false);
+      return;
+    }
+
     const { data, error: err } = await supabase.from("assignments").insert({
       title: assignForm.title,
       description: assignForm.description,
       course_id: assignForm.course_id || null,
       class_id: assignForm.class_id || null,
-      due_date: assignForm.due_date || null,
+      due_date: dueDate,
       teacher_id: user!.id,
       attachment_url: attachmentUrl,
       attachment_name: attachmentName,
@@ -958,7 +966,7 @@ export default function TeacherDashboard() {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/40 text-xs font-mono">
                         {a.courses && <span>Course: {a.courses.title}</span>}
                         {a.classes && <span>Class: {a.classes.name}</span>}
-                        <span>Due: {a.due_date ? new Date(a.due_date).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "No Due Date"}</span>
+                        <span>Due: {a.due_date ? formatJakartaDateTime(a.due_date, { day: "numeric", month: "long", year: "numeric" }) : "No Due Date"}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

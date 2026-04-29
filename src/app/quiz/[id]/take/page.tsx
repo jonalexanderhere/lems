@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { ArrowLeft, CheckCircle2, Clock, Loader2, PlayCircle, Save } from "lucide-react";
 import { awardXp } from "@/utils/xp";
+import { formatJakartaDateTime } from "@/utils/datetime";
 
 type QuizInfo = {
   id: string;
@@ -45,13 +46,9 @@ type ProfileRow = { id: string; role: string; class_id: string | null };
 
 function formatClock(value: string | null) {
   if (!value) return "-";
-  return new Date(value).toLocaleString("id-ID", {
+  return formatJakartaDateTime(value, {
     day: "numeric",
     month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Jakarta",
   });
 }
 
@@ -186,7 +183,6 @@ export default function QuizTakePage() {
           quiz_id: quiz.id,
           student_id: profile.id,
           answers,
-          score,
           score,
           total_questions: questions.length,
           correct_answers: correctCount,

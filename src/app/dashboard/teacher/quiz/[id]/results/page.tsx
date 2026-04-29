@@ -9,6 +9,7 @@ import Link from "next/link";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatJakartaDateTime } from "@/utils/datetime";
 
 type AttemptRow = {
   id: string;
@@ -75,8 +76,8 @@ export default function QuizResultsPage() {
       Total_Soal: att.total_questions ?? "",
       Status: att.score == null ? "Belum selesai" : percent >= 70 ? "Lulus" : "Belum lulus",
       Dikerjakan: att.submitted_at
-        ? new Date(att.submitted_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" })
-        : new Date(att.started_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }),
+        ? formatJakartaDateTime(att.submitted_at, { day: "numeric", month: "long", year: "numeric" })
+        : formatJakartaDateTime(att.started_at, { day: "numeric", month: "long", year: "numeric" }),
     };
   });
 
@@ -222,8 +223,8 @@ export default function QuizResultsPage() {
                           </td>
                           <td className="px-5 py-4 text-white/40 text-xs font-mono">
                             {att.submitted_at
-                              ? new Date(att.submitted_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })
-                              : new Date(att.started_at).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}
+                              ? formatJakartaDateTime(att.submitted_at, { day: "numeric", month: "short" })
+                              : formatJakartaDateTime(att.started_at, { day: "numeric", month: "short" })}
                           </td>
                         </tr>
                       );

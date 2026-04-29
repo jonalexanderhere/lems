@@ -6,6 +6,7 @@ import { Navigation } from "@/components/Navigation";
 import { ArrowLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { isValidLearningClockTime, jakartaInputToUtcIso } from "@/utils/datetime";
 
 type Question = {
   id?: string;
@@ -66,8 +67,33 @@ export default function NewQuizPage() {
     setSaving(true);
     setError("");
     const { data: { user } } = await supabase.auth.getUser();
-    const start_at = form.start_date && form.start_time ? `${form.start_date}T${form.start_time}:00` : null;
-    const end_at = form.end_date && form.end_time ? `${form.end_date}T${form.end_time}:00` : null;
+    const start_at = form.start_date && form.start_time ? jakartaInputToUtcIso(form.start_date, form.start_time) : null;
+    const end_at = form.end_date && form.end_time ? jakartaInputToUtcIso(form.end_date, form.end_time) : null;
+
+    if ((form.start_date || form.start_time) && !start_at) {
+      setError("Tanggal atau jam mulai tidak valid. Gunakan format tanggal ISO dan jam 24 jam.");
+      setSaving(false);
+      return;
+    }
+
+    if ((form.end_date || form.end_time) && !end_at) {
+      setError("Tanggal atau jam selesai tidak valid. Gunakan format tanggal ISO dan jam 24 jam.");
+      setSaving(false);
+      return;
+    }
+
+    if ((form.start_time && !isValidLearningClockTime(form.start_time)) || (form.end_time && !isValidLearningClockTime(form.end_time))) {
+      setError("Jam belajar hanya mendukung 06:00 sampai 23:59, atau 00:00 untuk midnight.");
+      setSaving(false);
+      return;
+    }
+
+    if (start_at && end_at && new Date(end_at).getTime() <= new Date(start_at).getTime()) {
+      setError("Waktu selesai harus setelah waktu mulai.");
+      setSaving(false);
+      return;
+    }
+
     const { data, error: err } = await supabase
       .from("quizzes")
       .insert({

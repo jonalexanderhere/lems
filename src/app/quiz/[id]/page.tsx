@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Navigation } from "@/components/Navigation";
 import { ArrowLeft, Clock, FileQuestion, GraduationCap, PlayCircle, ShieldAlert } from "lucide-react";
+import { formatJakartaDateTime } from "@/utils/datetime";
 
 type QuizPageProps = {
   params: Promise<{ id: string }>;
@@ -28,22 +29,14 @@ function firstItem<T>(value: T | T[] | null | undefined): T | null {
 
 function formatRange(startAt: string | null, endAt: string | null) {
   if (!startAt) return "Belum dijadwalkan";
-  const start = new Date(startAt).toLocaleString("id-ID", {
+  const start = formatJakartaDateTime(startAt, {
     day: "numeric",
     month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Jakarta",
   });
   if (!endAt) return start;
-  const end = new Date(endAt).toLocaleString("id-ID", {
+  const end = formatJakartaDateTime(endAt, {
     day: "numeric",
     month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Jakarta",
   });
   return `${start} - ${end}`;
 }
