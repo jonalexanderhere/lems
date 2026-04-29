@@ -13,7 +13,6 @@ import autoTable from "jspdf-autotable";
 type AttemptRow = {
   id: string;
   score: number | null;
-  max_score: number | null;
   total_questions: number | null;
   correct_answers: number | null;
   submitted_at: string | null;
@@ -40,7 +39,7 @@ export default function QuizResultsPage() {
 
       const { data: att } = await supabase
         .from("quiz_attempts")
-        .select("id, score, max_score, total_questions, correct_answers, submitted_at, started_at, profiles(full_name, username)")
+        .select("id, score, total_questions, correct_answers, submitted_at, started_at, profiles(full_name, username)")
         .eq("quiz_id", quizId)
         .order("score", { ascending: false });
 
@@ -53,9 +52,9 @@ export default function QuizResultsPage() {
   const stats = useMemo(() => {
     const completed = attempts.filter((a) => a.score !== null);
     const percentages = completed.map((a) => {
-      const score = a.score ?? 0;
-      const maxScore = a.max_score ?? 0;
-      return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+      const correct = a.correct_answers ?? 0;
+      const total = a.total_questions ?? 0;
+      return total > 0 ? Math.round((correct / total) * 100) : 0;
     });
     const avg = percentages.length ? Math.round(percentages.reduce((s, v) => s + v, 0) / percentages.length) : 0;
     const passed = percentages.filter((s) => s >= 70).length;
@@ -64,13 +63,13 @@ export default function QuizResultsPage() {
 
   const exportRows = attempts.map((att) => {
     const name = att.profiles?.full_name ?? att.profiles?.username ?? "Tidak Dikenal";
-    const score = att.score ?? 0;
-    const maxScore = att.max_score ?? 0;
-    const percent = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const correct = att.correct_answers ?? 0;
+    const total = att.total_questions ?? 0;
+    const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
     return {
       Nama: name,
       Skor: att.score ?? "",
-      Maksimum: maxScore || "",
+      Maksimum: total || "",
       Persentase: `${percent}%`,
       Benar: att.correct_answers ?? "",
       Total_Soal: att.total_questions ?? "",
@@ -194,9 +193,9 @@ export default function QuizResultsPage() {
                       const name = (att.profiles as { full_name: string | null; username: string | null } | null)?.full_name
                         ?? (att.profiles as { full_name: string | null; username: string | null } | null)?.username
                         ?? "Tidak Dikenal";
-                      const maxScore = att.max_score ?? 0;
-                      const score = att.score ?? 0;
-                      const percent = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                      const correct = att.correct_answers ?? 0;
+                      const total = att.total_questions ?? 0;
+                      const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
                       const passed = percent >= 70;
                       return (
                         <tr key={att.id} className="hover:bg-white/[0.02]">
@@ -207,7 +206,7 @@ export default function QuizResultsPage() {
                               {att.score ?? "—"}
                             </span>
                           </td>
-                          <td className="px-5 py-4 text-white/60">{maxScore || "—"}</td>
+                          <td className="px-5 py-4 text-white/60">{total || "—"}</td>
                           <td className="px-5 py-4 text-white/60">{att.score === null ? "—" : `${percent}%`}</td>
                           <td className="px-5 py-4 text-white/60">
                             {att.correct_answers ?? "—"}/{att.total_questions ?? "—"}

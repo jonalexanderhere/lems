@@ -35,7 +35,6 @@ type AttemptRow = {
   id: string;
   answers: Record<string, "a" | "b" | "c" | "d"> | null;
   score: number | null;
-  max_score: number | null;
   total_questions: number | null;
   correct_answers: number | null;
   started_at: string | null;
@@ -96,7 +95,7 @@ export default function QuizTakePage() {
           .order("order_num", { ascending: true }),
         supabase
           .from("quiz_attempts")
-          .select("id, answers, score, max_score, total_questions, correct_answers, started_at, submitted_at")
+          .select("id, answers, score, total_questions, correct_answers, started_at, submitted_at")
           .eq("quiz_id", quizId)
           .eq("student_id", user.id)
           .maybeSingle(),
@@ -144,7 +143,7 @@ export default function QuizTakePage() {
         },
         { onConflict: "quiz_id,student_id" }
       )
-      .select("id, answers, score, max_score, total_questions, correct_answers, started_at, submitted_at")
+      .select("id, answers, score, total_questions, correct_answers, started_at, submitted_at")
       .single();
 
     if (startError) {
@@ -188,7 +187,7 @@ export default function QuizTakePage() {
           student_id: profile.id,
           answers,
           score,
-          max_score: totalPoints,
+          score,
           total_questions: questions.length,
           correct_answers: correctCount,
           started_at: attempt?.started_at ?? new Date().toISOString(),
@@ -196,7 +195,7 @@ export default function QuizTakePage() {
         },
         { onConflict: "quiz_id,student_id" }
       )
-      .select("id, answers, score, max_score, total_questions, correct_answers, started_at, submitted_at")
+      .select("id, answers, score, total_questions, correct_answers, started_at, submitted_at")
       .single();
 
     if (submitError) {
@@ -357,7 +356,7 @@ export default function QuizTakePage() {
                 <p className="text-white/70 text-sm">
                   Nilai akhir: <span className="font-bold text-white">{attempt.score ?? "-"}</span>
                   {" "}
-                  / <span className="font-bold text-white">{attempt.max_score ?? questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0)}</span>
+                  / <span className="font-bold text-white">{questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0)}</span>
                   {attempt.correct_answers != null && attempt.total_questions != null
                     ? ` · Benar ${attempt.correct_answers}/${attempt.total_questions}`
                     : ""}
