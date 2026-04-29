@@ -79,16 +79,6 @@ Response style:
 - If the user asks for a topic example, give the example first, then the explanation.
 - If uncertain, say so briefly and still give the best helpful answer.`;
 
-function isLowContextQuery(query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return true;
-  if (/^(halo|hai|hello|hi|help|tolong|bantu)$/i.test(normalized)) return true;
-  if (normalized.length <= 18 && !/(vlan|ospf|ssh|linux|cisco|router|switch|tcp|udp|osi|subnet|routing|ip|server|quiz|tugas)/i.test(normalized)) {
-    return true;
-  }
-  return /(?:tutorial\s+os|bantu\s+tutorial|contoh\s+dari\s+vlan)/i.test(normalized);
-}
-
 import { OpenRouter } from "@openrouter/sdk";
 
 export async function POST(req: NextRequest) {
@@ -113,15 +103,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const lastUserMessage = [...messages]
-    .reverse()
-    .find((m) => m.role === "user")
-    ?.content?.trim() ?? "";
-
-  if (isLowContextQuery(lastUserMessage)) {
-    return createStreamingTextResponse(buildLocalAnswer(lastUserMessage));
-  }
-
   try {
     const openrouter = new OpenRouter({ apiKey });
 
@@ -130,6 +111,7 @@ export async function POST(req: NextRequest) {
       chatRequest: {
         model: process.env.OPENROUTER_MODEL ?? "openai/gpt-oss-120b:free",
         messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...messages],
+        temperature: 0.7,
         stream: true
       }
     });

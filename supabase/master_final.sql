@@ -132,6 +132,7 @@ CREATE TABLE quiz_attempts (
   student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   answers JSONB DEFAULT '{}'::JSONB,
   score INT,
+  max_score INT DEFAULT 0,
   total_questions INT,
   correct_answers INT,
   started_at TIMESTAMPTZ DEFAULT now(),

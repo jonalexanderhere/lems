@@ -57,35 +57,40 @@ export default function AITutorPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       const assistantChunks: string[] = [];
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6).trim();
+        // SSE events are separated by a blank line
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const event of events) {
+          const lines = event.split("\n");
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (!data) continue;
             if (data === "[DONE]") continue;
+
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                assistantChunks.push(delta);
-                const assistantText = assistantChunks.join("");
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    role: "assistant",
-                    content: assistantText,
-                  };
-                  return updated;
-                });
-              }
+              if (!delta) continue;
+
+              assistantChunks.push(delta);
+              const assistantText = assistantChunks.join("");
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: assistantText };
+                return updated;
+              });
             } catch {
-              // skip non-JSON lines
+              // ignore malformed JSON (e.g., partial event)
             }
           }
         }
@@ -130,7 +135,7 @@ export default function AITutorPage() {
               </h1>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs text-white/40 uppercase tracking-widest">Online · GPT-4o mini</span>
+                <span className="text-xs text-white/40 uppercase tracking-widest">Online · OpenRouter</span>
               </div>
             </div>
           </div>

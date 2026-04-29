@@ -42,6 +42,7 @@ CREATE TABLE quiz_attempts (
   quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
   student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   score INT,
+  max_score INT DEFAULT 0,
   total_questions INT,
   correct_answers INT,
   started_at TIMESTAMPTZ DEFAULT now(),
