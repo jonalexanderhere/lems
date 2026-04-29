@@ -23,13 +23,32 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
-  const { error } = await admin.auth.resetPasswordForEmail(email, {
-    redirectTo: `${new URL(req.url).origin}/auth/callback?next=/reset-password`,
+  const origin = new URL(req.url).origin;
+
+  // For teachers/admins: generate a recovery link directly (no email sending).
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: {
+      redirectTo: `${origin}/auth/callback?next=/reset-password`,
+    },
   });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true });
+  const tokenHash = (data as unknown as { hashed_token?: string | null })?.hashed_token ?? null;
+  const actionLink = (data as unknown as { action_link?: string | null })?.action_link ?? null;
+
+  // Prefer our in-app callback link (stable), fallback to provider action_link if needed.
+  const directLink = tokenHash
+    ? `${origin}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=recovery&next=/reset-password`
+    : actionLink;
+
+  if (!directLink) {
+    return NextResponse.json({ error: "Failed to generate recovery link" }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true, link: directLink });
 }

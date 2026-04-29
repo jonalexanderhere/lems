@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
     // Stream the response to get reasoning tokens in usage
     const stream = await openrouter.chat.send({
       chatRequest: {
-        model: process.env.OPENROUTER_MODEL ?? "openai/gpt-oss-120b:free",
+        model: process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-super-120b-a12b:free",
         messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...messages],
         temperature: 0.7,
-        stream: true
-      }
+        stream: true,
+      },
     });
 
     const encoder = new TextEncoder();

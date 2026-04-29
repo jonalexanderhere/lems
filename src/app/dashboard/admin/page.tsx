@@ -316,13 +316,13 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    const payload = (await response.json()) as { error?: string; ok?: boolean };
+    const payload = (await response.json()) as { error?: string; ok?: boolean; link?: string };
     if (!response.ok) {
       setResetMessage(payload.error ?? "Gagal mengirim reset password.");
       setResettingEmail("");
       return;
     }
-    setResetMessage(`Link reset password terkirim ke ${email}.`);
+    setResetMessage(payload.link ? `Link reset untuk ${email}: ${payload.link}` : `Link reset password dibuat untuk ${email}.`);
     setResettingEmail("");
   };
 

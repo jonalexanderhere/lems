@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SmoothScroller } from "@/components/SmoothScroller";
+import { FloatingTutor } from "@/components/FloatingTutor";
 
 export const metadata: Metadata = {
   title: "Netvora Academy | Build Networks. Secure Systems.",
@@ -18,6 +19,7 @@ export default function RootLayout({
         <SmoothScroller>
           {children}
         </SmoothScroller>
+        <FloatingTutor />
       </body>
     </html>
   );

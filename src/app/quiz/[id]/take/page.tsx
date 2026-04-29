@@ -14,6 +14,7 @@ type QuizInfo = {
   title: string;
   description: string | null;
   duration_minutes: number;
+  type: string;
   start_at: string | null;
   end_at: string | null;
   is_published: boolean;
@@ -69,6 +70,7 @@ export default function QuizTakePage() {
   const [error, setError] = useState("");
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -82,7 +84,7 @@ export default function QuizTakePage() {
         supabase.from("profiles").select("id, role, class_id").eq("id", user.id).single(),
         supabase
           .from("quizzes")
-          .select("id, title, description, duration_minutes, start_at, end_at, is_published, class_id")
+          .select("id, title, description, duration_minutes, type, start_at, end_at, is_published, class_id")
           .eq("id", quizId)
           .maybeSingle(),
         supabase
@@ -123,6 +125,27 @@ export default function QuizTakePage() {
 
     init();
   }, [quizId, router, supabase]);
+
+  // Lockdown mode for semester exams: if user switches tab/window, show a full-screen lock overlay.
+  useEffect(() => {
+    if (!quiz) return;
+    const isSemester = quiz.type === "ulangan_semester";
+    if (!isSemester) return;
+    if (!started || finished) return;
+
+    const handleVisibility = () => {
+      if (document.hidden) setLocked(true);
+    };
+    const handleBlur = () => setLocked(true);
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [finished, quiz, started]);
 
   const startQuiz = async () => {
     if (!quiz || !profile) return;
@@ -232,7 +255,28 @@ export default function QuizTakePage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-white">
-      <Navigation />
+      {quiz.type !== "ulangan_semester" && <Navigation />}
+
+      {locked && quiz.type === "ulangan_semester" && !finished && (
+        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center px-6">
+          <div className="w-full max-w-lg border border-[#FF2D2D]/30 bg-[#0A0A0A] p-7 text-center">
+            <p className="text-[#FF2D2D] font-mono text-xs uppercase tracking-widest mb-3">Lock Mode</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight mb-3" style={{ fontFamily: "var(--font-grotesk)" }}>
+              Ulangan Semester Terkunci
+            </h2>
+            <p className="text-white/50 text-sm mb-6">
+              Sistem mendeteksi kamu berpindah tab/jendela. Kembali fokus ke ujian untuk melanjutkan.
+            </p>
+            <button
+              type="button"
+              onClick={() => setLocked(false)}
+              className="inline-flex items-center justify-center px-6 py-3 bg-[#FF2D2D] text-white font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors"
+            >
+              Kembali ke Ujian
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="pt-28 pb-8 px-6 md:px-12 border-b border-white/10">
         <div className="container mx-auto max-w-5xl">
