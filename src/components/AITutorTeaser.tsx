@@ -80,11 +80,11 @@ export function AITutorTeaser() {
 
             <div className="ai-text pt-8">
               <Link 
-                href="/ai-tutor" 
+                href="/courses" 
                 className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-background font-bold uppercase tracking-widest overflow-hidden"
               >
                 <div className="absolute inset-0 bg-accent translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-in-out" />
-                <span className="relative z-10 group-hover:text-white transition-colors duration-500 delay-75">Tanya AI Sekarang</span>
+                <span className="relative z-10 group-hover:text-white transition-colors duration-500 delay-75">Mulai Belajar</span>
                 <ArrowRight className="relative z-10 w-5 h-5 group-hover:text-white transition-colors duration-500 delay-75 group-hover:translate-x-1" />
               </Link>
             </div>

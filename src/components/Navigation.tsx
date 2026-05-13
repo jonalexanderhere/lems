@@ -10,7 +10,6 @@ import { createClient } from "@/utils/supabase/client";
 const navLinks = [
   { name: "Kursus", href: "/courses" },
   { name: "Alur Belajar", href: "/paths" },
-  { name: "AI Tutor", href: "/ai-tutor" },
   { name: "Papan Skor", href: "/leaderboard" },
   { name: "Kontak", href: "/contact" },
 ];
@@ -18,7 +17,6 @@ const navLinks = [
 const dashboardLinks = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Kursus", href: "/courses", icon: BookOpen },
-  { name: "AI Tutor", href: "/ai-tutor", icon: Bot },
   { name: "Papan Skor", href: "/leaderboard", icon: Trophy },
 ];
 
