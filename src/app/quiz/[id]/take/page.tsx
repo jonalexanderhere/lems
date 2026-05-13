@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { Navigation } from "@/components/Navigation";
-import { ArrowLeft, CheckCircle2, Clock, Loader2, PlayCircle, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Loader2, PlayCircle, Save, Sparkles } from "lucide-react";
 import { awardXp } from "@/utils/xp";
 import { formatJakartaDateTime } from "@/utils/datetime";
 
@@ -226,6 +226,38 @@ export default function QuizTakePage() {
     setAttempt(data as AttemptRow);
     setFinished(true);
 
+    // --- INTEGRATE AI DIAGNOSTIC ANALYSIS ---
+    const wrongAnswers = questions
+      .filter((q) => answers[q.id] !== q.correct_option)
+      .map((q) => ({
+        question: q.question_text,
+        studentAnswer: answers[q.id] || "Tidak dijawab",
+        correctAnswer: q.correct_option,
+        category: "General", // You can expand this if questions have categories
+      }));
+
+    if (wrongAnswers.length > 0) {
+      try {
+        const diagRes = await fetch("/api/exam-analysis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentName: profile.id, // Or name if available
+            examTitle: quiz.title,
+            score: score,
+            totalQuestions: questions.length,
+            wrongAnswers: wrongAnswers,
+          }),
+        });
+        if (diagRes.ok) {
+          const diagData = await diagRes.json();
+          setAiAnalysis(diagData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch AI diagnostic:", err);
+      }
+    }
+
     if (!hadSubmittedBefore) {
       const awarded = 20 + Math.round(percentage / 5);
       await awardXp(supabase, profile.id, awarded);
@@ -233,6 +265,8 @@ export default function QuizTakePage() {
 
     setSubmitting(false);
   };
+
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
 
   if (loading) {
     return (
@@ -401,6 +435,63 @@ export default function QuizTakePage() {
                     ? ` · Benar ${attempt.correct_answers}/${attempt.total_questions}`
                     : ""}
                 </p>
+              </div>
+            )}
+
+            {finished && aiAnalysis && (
+              <div className="p-8 bg-[#0A0A0A] border border-[#FF2D2D]/20 rounded-3xl shadow-[0_20px_50px_rgba(255,45,45,0.05)] space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#FF2D2D]/10 rounded-2xl flex items-center justify-center border border-[#FF2D2D]/20">
+                    <Sparkles className="w-6 h-6 text-[#FF2D2D]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">AI Diagnostic Analysis</h3>
+                    <p className="text-white/40 text-xs uppercase tracking-widest font-mono">Netvora Intelligence Insight</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-[#FF2D2D] font-mono text-[10px] uppercase tracking-[0.2em] mb-2 font-bold">Kelemahan Terdeteksi</p>
+                      <div className="flex flex-wrap gap-2">
+                        {aiAnalysis.weaknesses?.map((w: string, i: number) => (
+                          <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-white/70">
+                            {w}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-white/20 font-mono text-[10px] uppercase tracking-[0.2em] mb-2 font-bold">Analisis Diagnostik</p>
+                      <p className="text-sm text-white/70 leading-relaxed italic">
+                        "{aiAnalysis.diagnosticSummary}"
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/[0.02] border border-white/5 p-6 rounded-2xl space-y-4">
+                    <p className="text-[#FF2D2D] font-mono text-[10px] uppercase tracking-[0.2em] font-bold">Jalur Belajar (Learning Path)</p>
+                    <ul className="space-y-3">
+                      {aiAnalysis.learningPath?.map((step: string, i: number) => (
+                        <li key={i} className="flex gap-3 text-sm text-white/60">
+                          <span className="text-[#FF2D2D] font-bold">{i + 1}.</span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <p className="text-[11px] text-white/30 uppercase tracking-widest">{aiAnalysis.motivation}</p>
+                  </div>
+                  <button className="text-[10px] uppercase tracking-widest font-black text-[#FF2D2D] hover:text-white transition-colors">
+                    Pelajari Materi Terkait →
+                  </button>
+                </div>
               </div>
             )}
           </div>

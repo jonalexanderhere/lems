@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getAiStream } from "@/lib/ai/fallbackManager";
 
 export const runtime = "edge";
 
@@ -64,22 +65,24 @@ function createStreamingTextResponse(text: string) {
   });
 }
 
-const SYSTEM_PROMPT = `You are Netvora Intelligence, a practical AI tutor for students.
+const SYSTEM_PROMPT = `You are Netvora Intelligence, an expert AI tutor with professional, structured, and aesthetic response style.
 
-Your strengths:
-- Networking, Cisco IOS, Linux Server Administration, cybersecurity, programming, school work, productivity, and general knowledge.
+Your Expertise:
+- Networking (Cisco IOS, Mikrotik, Subnetting, VLAN, OSPF, BGP)
+- Linux Server Administration (Debian, Ubuntu, SSH, Web Server, Security)
+- Cybersecurity & Programming (Python, JavaScript, Next.js, Security Auditing)
+- School work, productivity, and general technical guidance.
 
-Response style:
-- Match the user's language.
-- Be helpful, concrete, and easy to follow.
-- If the question is vague, answer with a short starter explanation and ask 1 focused follow-up question.
-- Never respond with only "kirim konteks" or similarly empty guidance.
-- Use code blocks for commands/configs when useful.
-- Prefer step-by-step guidance, examples, and troubleshooting notes.
-- If the user asks for a topic example, give the example first, then the explanation.
-- If uncertain, say so briefly and still give the best helpful answer.`;
+Response Rules (MUST FOLLOW):
+1. **Language:** Always respond in clear, professional, yet friendly Indonesian (Bahasa Indonesia).
+2. **Structure:** Use clear headings (##), bullet points, and numbered lists for steps.
+3. **Typography:** Use **bold** for key terms and *italics* for emphasis.
+4. **Code Blocks:** Always use appropriate language tags for code/commands (e.g., \`\`\`bash, \`\`\`ios, \`\`\`json).
+5. **Conciseness:** Be direct. Avoid unnecessary filler words. Use short, punchy paragraphs.
+6. **Interaction:** If a question is broad, provide a summary first, then ask one specific follow-up question to dive deeper.
+7. **No Placeholders:** Provide real examples, not "your_text_here".`;
 
-import { OpenRouter } from "@openrouter/sdk";
+
 
 export async function POST(req: NextRequest) {
   // --- Parse messages ---
@@ -96,60 +99,17 @@ export async function POST(req: NextRequest) {
     return createSseResponse("Kirim pertanyaan yang valid supaya saya bisa membantu.");
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  const groqApiKey = process.env.GROQ_API_KEY;
+  const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!groqApiKey && !openRouterApiKey) {
     return createSseResponse(
       "Konfigurasi server belum lengkap. Hubungi administrator."
     );
   }
 
-  try {
-    const openrouter = new OpenRouter({ apiKey });
-
-    // Stream the response to get reasoning tokens in usage
-    const stream = await openrouter.chat.send({
-      chatRequest: {
-        model: process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-super-120b-a12b:free",
-        messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...messages],
-        temperature: 0.7,
-        stream: true,
-      },
-    });
-
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const content = chunk.choices?.[0]?.delta?.content;
-            if (content) {
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-                )
-              );
-            }
-
-            // Usage information comes in the final chunk
-            const usage = chunk.usage as { reasoningTokens?: number } | undefined;
-            if (usage && usage.reasoningTokens) {
-              console.log("[AI Tutor] Reasoning tokens:", usage.reasoningTokens);
-            }
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        } catch (err) {
-          console.error("Stream error", err);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ choices: [{ delta: { content: "\n\n[Koneksi terputus]" } }] })}\n\n`
-            )
-          );
-        } finally {
-          controller.close();
-        }
-      }
-    });
-
+  // Helper to stream from standard OpenAI-like readable stream
+  const createAiStreamResponse = (readable: ReadableStream) => {
     return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -158,10 +118,54 @@ export async function POST(req: NextRequest) {
         "X-Accel-Buffering": "no",
       },
     });
+  };
 
-  } catch (err) {
-    console.error("OpenRouter Error:", err);
-    // fallback
+  // --- MODULAR AI PROVIDER CHAIN ---
+  try {
+    const aiStream = getAiStream({
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+      temperature: 0.7,
+      stream: true,
+    });
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of aiStream) {
+            if (chunk.content) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ choices: [{ delta: { content: chunk.content } }] })}\n\n`
+                )
+              );
+            }
+
+            // Log reasoning tokens if available (OpenRouter)
+            if (chunk.usage && (chunk.usage as any).reasoningTokens) {
+              console.log("[AI Tutor] Reasoning tokens:", (chunk.usage as any).reasoningTokens);
+            }
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } catch (err: any) {
+          console.error("[AI Chat Route] Stream Error:", err.message);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ delta: { content: "\n\n[Koneksi ke AI terputus. Silakan coba lagi.]" } }] })}\n\n`
+            )
+          );
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return createAiStreamResponse(readable);
+
+  } catch (err: any) {
+    console.error("[AI Chat Route] Primary Error:", err.message);
+    
+    // FINAL FALLBACK TO LOCAL
     const lastMsg = [...messages]
       .reverse()
       .find((m) => m.role === "user")

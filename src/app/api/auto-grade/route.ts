@@ -1,5 +1,5 @@
-import { OpenRouter } from "@openrouter/sdk";
 import { NextResponse } from "next/server";
+import { getAiResponse } from "@/lib/ai/fallbackManager";
 
 type GradeRequest = {
   assignmentTitle?: string;
@@ -8,6 +8,7 @@ type GradeRequest = {
   fileType?: string;
   fileSize?: number;
   note?: string;
+  submittedAt?: string; // ISO timestamp
 };
 
 function fallbackGrade(payload: GradeRequest) {
@@ -21,6 +22,7 @@ function fallbackGrade(payload: GradeRequest) {
     score,
     feedback:
       "Penilaian otomatis berdasarkan kelengkapan file, catatan, dan metadata tugas. Tambahkan ringkasan kerja yang lebih jelas untuk skor lebih tinggi.",
+    behaviorAnalysis: "Data pengerjaan tidak lengkap untuk analisis perilaku.",
   };
 }
 
@@ -28,60 +30,50 @@ export async function POST(req: Request) {
   const payload = (await req.json()) as GradeRequest;
   const fallback = fallbackGrade(payload);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(fallback);
-  }
-
   try {
-    const openrouter = new OpenRouter({
-      apiKey,
-      httpReferer: "https://netvora.academy",
-      appTitle: "Netvora Academy Auto Grader",
-    });
+    const prompt = `Anda adalah asisten penilaian tugas otomatis untuk LMS Networking & Cybersecurity.
+Tugas: ${payload.assignmentTitle}
+Deskripsi Tugas: ${payload.assignmentDescription}
+Nama File: ${payload.fileName}
+Catatan Siswa: ${payload.note}
+Waktu Pengumpulan: ${payload.submittedAt || "Tidak diketahui"}
 
-    const response = await openrouter.chat.send({
-      chatRequest: {
-        model: "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an automatic assignment grader for a networking and cybersecurity LMS. Return only valid JSON with keys score and feedback. score must be an integer from 0 to 100. feedback must be a short Indonesian paragraph. Do not include markdown or extra keys.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              assignmentTitle: payload.assignmentTitle ?? "",
-              assignmentDescription: payload.assignmentDescription ?? "",
-              fileName: payload.fileName ?? "",
-              fileType: payload.fileType ?? "",
-              note: payload.note ?? "",
-            }),
-          },
-        ],
-        maxTokens: 250,
-        temperature: 0.2,
-      },
-    });
+Berikan penilaian objektif dalam format JSON murni tanpa teks lain atau markdown blocks:
+{
+  "score": (angka 0-100),
+  "feedback": "Penjelasan singkat dalam Bahasa Indonesia mengapa nilai tersebut diberikan dan saran perbaikan.",
+  "behaviorAnalysis": "Analisis singkat perilaku siswa berdasarkan waktu pengumpulan (misal: pengerjaan larut malam, pengerjaan cepat, atau dedikasi tinggi) dan hubungannya dengan kualitas tugas."
+}`;
 
-    const content = response.choices[0]?.message?.content ?? "";
+    const content = await getAiResponse({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+    });
 
     try {
-      const parsed = JSON.parse(content as string) as { score?: unknown; feedback?: unknown };
+      const cleaned = content.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleaned) as { 
+        score?: unknown; 
+        feedback?: unknown;
+        behaviorAnalysis?: string;
+      };
+      
       const score = Number(parsed.score);
       const feedback = typeof parsed.feedback === "string" ? parsed.feedback : fallback.feedback;
+      const behaviorAnalysis = parsed.behaviorAnalysis || fallback.behaviorAnalysis;
+      
       if (Number.isFinite(score)) {
         return NextResponse.json({
           score: Math.max(0, Math.min(100, Math.round(score))),
           feedback,
+          behaviorAnalysis
         });
       }
-    } catch {
-      // fall through to fallback
+    } catch (e) {
+      console.error("Failed to parse AI grading response:", content);
     }
-  } catch {
-    return NextResponse.json(fallback);
+  } catch (err: any) {
+    console.error("Auto Grade Error:", err.message);
   }
 
   return NextResponse.json(fallback);
