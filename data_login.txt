@@ -1,0 +1,49 @@
+==========================================================
+DATADATA LOGIN NETVORA ACADEMY - KELAS XI TJKT 3
+==========================================================
+PASSWORD DEFAULT: Netvora123!
+==========================================================
+
+GURU:
+- Nama: Abid Rahmat Satria Putra
+  Email: abid@netvora.edu
+
+SISWA:
+1. ANGGI - anggi@netvora.edu
+2. AURA NIRMA MAULIDA - aura.nirma.maulida@netvora.edu
+3. AVIFAH KLAURIA - avifah.klauria@netvora.edu
+4. BUNGA RODATUL JANAH - bunga.rodatul.janah@netvora.edu
+5. DELA KEYNORA - dela.keynora@netvora.edu
+6. DELTA LIYA PRATAMA - delta.liya.pratama@netvora.edu
+7. DEPI ENJELIKA - depi.enjelika@netvora.edu
+8. HESTI PUSPITA - hesti.puspita@netvora.edu
+9. INDRI SABELA - indri.sabela@netvora.edu
+10. KEISHA AZZAHRA SALSABIL - keisha.azzahra.salsabil@netvora.edu
+11. KEYLA LOSPITA - keyla.lospita@netvora.edu
+12. KEYSA NISA AL ZAHRA - keysa.nisa.al.zahra@netvora.edu
+13. KHELSI ELIZA - khelsi.eliza@netvora.edu
+14. LEKOK FITRIYANI - lekok.fitriyani@netvora.edu
+15. LUCKY EARLY - lucky.early@netvora.edu
+16. MELDI ANGGARA - meldi.anggara@netvora.edu
+17. MUHAMMAD FAHRI TIZA - muhammad.fahri.tiza@netvora.edu
+18. MUHAMMAD NIKI PRADITA - muhammad.niki.pradita@netvora.edu
+19. NAELA NUR ANGGRAINI - naela.nur.anggraini@netvora.edu
+20. NAILA AYU MAHARANI - naila.ayu.maharani@netvora.edu
+21. NAILA RIZKA ROMADONA - naila.rizka.romadona@netvora.edu
+22. NAUFAL PRADITAMA - naufal.praditama@netvora.edu
+23. PAREL DERI WINATA - parel.deri.winata@netvora.edu
+24. RAHMAWATI PUSPITA DEWI - rahmawati.puspita.dewi@netvora.edu
+25. RANGGA SETIAWAN PRATAMA - rangga.setiawan.pratama@netvora.edu
+26. REMA PADILA - rema.padila@netvora.edu
+27. REY RINGGA ADRIAN VACLANASA - rey.ringga.adrian.vaclanasa@netvora.edu
+28. RIZKY AMALINA - rizky.amalina@netvora.edu
+29. SITI NURJANAH - siti.nurjanah@netvora.edu
+30. SOPIAH ASKA JUNIANTI - sopiah.aska.junianti@netvora.edu
+31. SYIFA QINAYA SALSABILLA - syifa.qinaya.salsabilla@netvora.edu
+32. TAZKIYAH NURUSSYIFA - tazkiyah.nurussyifa@netvora.edu
+33. YOGI DINATA - yogi.dinata@netvora.edu
+34. ZELFI VITRI YANI - zelfi.vitri.yani@netvora.edu
+
+==========================================================
+Dibuat otomatis oleh Netvora Intelligence pada 13 Mei 2026
+==========================================================
